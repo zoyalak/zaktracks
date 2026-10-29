@@ -92,6 +92,24 @@ export const analyzeLabel = (
   signal?: AbortSignal,
 ): Promise<LabelAnalysis> => post<LabelAnalysis>('/api/analyze/label', { image, nameHint }, signal)
 
+export interface IngredientEstimate {
+  name: string
+  grams: number
+  kcal: number
+  protein: number
+  carbs: number
+  fat: number
+  extras: ExtraMacros
+}
+
+/** Nutrition for one recipe ingredient at the amount being used. */
+export const estimateIngredient = (
+  name: string,
+  grams: number,
+  signal?: AbortSignal,
+): Promise<IngredientEstimate> =>
+  post<IngredientEstimate>('/api/analyze/ingredient', { name, grams }, signal)
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   text: string

@@ -199,15 +199,17 @@ function mergeFromSnapshot(base: AppData, snap: Snapshot): AppData {
  * stick. If IndexedDB refuses the write-back the snapshot is kept: the merged
  * view is still correct for this session and the next load tries again.
  */
+/** True when a snapshot holds anything worth keeping. */
+const hasContent = (s: Snapshot): boolean =>
+  s.authoritative === true ||
+  s.profile !== null ||
+  s.meals.length > 0 ||
+  s.foods.length > 0 ||
+  s.settings.weightLog.length > 0
+
 async function absorbSnapshot(loaded: AppData, db: IDBDatabase): Promise<AppData> {
   const snap = readSnapshot()
-  const meaningful =
-    snap.authoritative === true ||
-    snap.profile !== null ||
-    snap.meals.length > 0 ||
-    snap.foods.length > 0 ||
-    snap.settings.weightLog.length > 0
-  if (!meaningful) return loaded
+  if (!hasContent(snap)) return loaded
 
   const merged: AppData = snap.authoritative
     ? {
@@ -243,6 +245,64 @@ async function absorbSnapshot(loaded: AppData, db: IDBDatabase): Promise<AppData
 }
 
 // ---------------------------------------------------------------------------
+// Write-through mirror
+// ---------------------------------------------------------------------------
+
+/**
+ * A complete copy of the app state kept in localStorage and refreshed on every
+ * save, so IndexedDB losing the data (storage evicted, private mode, a browser
+ * that clears site data) can no longer start the user over on onboarding — the
+ * next load rebuilds IndexedDB from here.
+ *
+ * Photos are stripped from the mirror: meal pictures are base64 data URLs that
+ * would blow the ~5 MB localStorage quota within days. Recovery therefore
+ * restores every number and note, and only the photo thumbnails go missing.
+ */
+let mirror: Snapshot | null = null
+
+/** Photos are kept in IndexedDB only — never in the localStorage mirror. */
+const slimMeal = (m: MealEntry): MealEntry => (m.photo ? { ...m, photo: undefined } : m)
+
+const slimMeals = (meals: MealEntry[]): MealEntry[] => meals.map(slimMeal)
+
+const setMirror = (next: Snapshot): void => {
+  mirror = next
+  try {
+    writeSnapshot(next)
+  } catch (err) {
+    console.warn('Could not update the localStorage mirror', err)
+  }
+}
+
+const mirrorWrite = (mutate: (m: Snapshot) => void): void => {
+  if (!mirror) mirror = readSnapshot()
+  mutate(mirror)
+  setMirror(mirror)
+}
+
+/** Rebuild IndexedDB from the mirror after the browser threw its data away. */
+async function restoreToIdb(db: IDBDatabase, data: AppData): Promise<void> {
+  try {
+    const t = db.transaction(['kv', 'meals', 'foods'], 'readwrite')
+    t.objectStore('kv').clear()
+    t.objectStore('meals').clear()
+    t.objectStore('foods').clear()
+    if (data.profile) t.objectStore('kv').put(data.profile, 'profile')
+    t.objectStore('kv').put(data.settings, 'settings')
+    for (const m of data.meals) t.objectStore('meals').put(m)
+    for (const f of data.foods) t.objectStore('foods').put(f)
+    await new Promise<void>((resolve, reject) => {
+      t.oncomplete = () => resolve()
+      t.onerror = () => reject(t.error)
+      t.onabort = () => reject(t.error)
+    })
+    console.info('Restored IndexedDB from the localStorage mirror')
+  } catch (err) {
+    console.warn('Could not rebuild IndexedDB from the mirror', err)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -259,15 +319,21 @@ export const storageMode = (): 'indexeddb' | 'localstorage' => (usingIdb ? 'inde
 export async function loadAll(): Promise<AppData> {
   if (!usingIdb) {
     const s = readSnapshot()
-    if (!s.authoritative) {
+    // Only a snapshot with real content is promoted to "this is the whole
+    // store": an empty one must never be able to overwrite IndexedDB later.
+    const auth = s.authoritative || hasContent(s)
+    if (auth && !s.authoritative) {
       // From here on this snapshot *is* the live store, so a later session
       // where IndexedDB works must treat it as the full state, not a patch.
       writeSnapshot({ ...s, authoritative: true })
     }
-    return { profile: s.profile, meals: s.meals, foods: s.foods, settings: s.settings }
+    const data: AppData = { profile: s.profile, meals: s.meals, foods: s.foods, settings: s.settings }
+    setMirror({ profile: s.profile, meals: slimMeals(s.meals), foods: s.foods, settings: s.settings, authoritative: auth })
+    return data
   }
   try {
     const db = await getDb()
+    const snap = readSnapshot()
     const profile = await tx<Profile | undefined>(db, 'kv', 'readonly', (s) => s.get('profile'))
     const settings = await tx<Settings | undefined>(db, 'kv', 'readonly', (s) => s.get('settings'))
     const meals = await tx<MealEntry[]>(db, 'meals', 'readonly', (s) => s.getAll())
@@ -278,107 +344,101 @@ export async function loadAll(): Promise<AppData> {
       foods: (foods ?? []).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
       settings: { weightLog: settings?.weightLog ?? [] },
     }
-    return absorbSnapshot(loaded, db)
+
+    // IndexedDB came back empty but the mirror still has the data — the
+    // browser evicted the database (or site data was cleared). Rebuild it
+    // instead of sending the user through onboarding as if they were new.
+    if (!hasContent(loaded) && hasContent(snap)) {
+      const restored: AppData = {
+        profile: snap.profile,
+        meals: [...snap.meals].sort((a, b) => a.createdAt - b.createdAt),
+        foods: [...snap.foods].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
+        settings: snap.settings,
+      }
+      await restoreToIdb(db, restored)
+      setMirror({
+        profile: restored.profile,
+        meals: slimMeals(restored.meals),
+        foods: restored.foods,
+        settings: restored.settings,
+      })
+      return restored
+    }
+
+    const merged = await absorbSnapshot(loaded, db)
+    setMirror({
+      profile: merged.profile,
+      meals: slimMeals(merged.meals),
+      foods: merged.foods,
+      settings: merged.settings,
+    })
+    return merged
   } catch (err) {
     console.warn('IndexedDB unavailable, using localStorage', err)
     usingIdb = false
     const s = readSnapshot()
+    // This snapshot is the live store from here on — but only if it holds
+    // something; an empty one must not be able to wipe IndexedDB later.
+    const auth = s.authoritative || hasContent(s)
+    setMirror({ profile: s.profile, meals: slimMeals(s.meals), foods: s.foods, settings: s.settings, authoritative: auth })
     return { profile: s.profile, meals: s.meals, foods: s.foods, settings: s.settings }
   }
 }
 
 export async function saveProfile(profile: Profile | null): Promise<void> {
-  if (!usingIdb) {
-    const s = readSnapshot()
-    s.profile = profile
-    writeSnapshot(s)
-    return
+  if (usingIdb) {
+    await idbWrite(
+      'kv',
+      (s) => {
+        if (profile) s.put(profile, 'profile')
+        else s.delete('profile')
+      },
+      // The mirror written below is the fallback — nothing else to do here.
+      () => {},
+    )
   }
-  await idbWrite('kv', (s) => {
-    if (profile) s.put(profile, 'profile')
-    else s.delete('profile')
-  }, () => {
-    const s = readSnapshot()
-    s.profile = profile
-    writeSnapshot(s)
+  mirrorWrite((m) => {
+    m.profile = profile
   })
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
-  if (!usingIdb) {
-    const s = readSnapshot()
-    s.settings = settings
-    writeSnapshot(s)
-    return
-  }
-  await idbWrite('kv', (s) => { s.put(settings, 'settings') }, () => {
-    const s = readSnapshot()
-    s.settings = settings
-    writeSnapshot(s)
+  if (usingIdb) await idbWrite('kv', (s) => { s.put(settings, 'settings') }, () => {})
+  mirrorWrite((m) => {
+    m.settings = settings
   })
 }
 
 export async function putMeal(meal: MealEntry): Promise<void> {
-  if (!usingIdb) {
-    const s = readSnapshot()
-    const idx = s.meals.findIndex((m) => m.id === meal.id)
-    if (idx >= 0) s.meals[idx] = meal
-    else s.meals.push(meal)
-    writeSnapshot(s)
-    return
-  }
-  await idbWrite('meals', (s) => { s.put(meal) }, () => {
-    const s = readSnapshot()
-    const idx = s.meals.findIndex((m) => m.id === meal.id)
-    if (idx >= 0) s.meals[idx] = meal
-    else s.meals.push(meal)
-    writeSnapshot(s)
+  if (usingIdb) await idbWrite('meals', (s) => { s.put(meal) }, () => {})
+  mirrorWrite((m) => {
+    const idx = m.meals.findIndex((x) => x.id === meal.id)
+    const slim = slimMeal(meal)
+    if (idx >= 0) m.meals[idx] = slim
+    else m.meals.push(slim)
   })
 }
 
 export async function deleteMeal(id: string): Promise<void> {
-  if (!usingIdb) {
-    const s = readSnapshot()
-    s.meals = s.meals.filter((m) => m.id !== id)
-    writeSnapshot(s)
-    return
-  }
-  await idbWrite('meals', (s) => { s.delete(id) }, () => {
-    const s = readSnapshot()
-    s.meals = s.meals.filter((m) => m.id !== id)
-    writeSnapshot(s)
+  if (usingIdb) await idbWrite('meals', (s) => { s.delete(id) }, () => {})
+  mirrorWrite((m) => {
+    m.meals = m.meals.filter((x) => x.id !== id)
   })
 }
 
 export async function putFood(food: Food): Promise<void> {
-  if (!usingIdb) {
-    const s = readSnapshot()
-    const idx = s.foods.findIndex((f) => f.id === food.id)
-    if (idx >= 0) s.foods[idx] = food
-    else s.foods.push(food)
-    writeSnapshot(s)
-    return
-  }
-  await idbWrite('foods', (s) => { s.put(food) }, () => {
-    const s = readSnapshot()
-    const idx = s.foods.findIndex((f) => f.id === food.id)
-    if (idx >= 0) s.foods[idx] = food
-    else s.foods.push(food)
-    writeSnapshot(s)
+  if (usingIdb) await idbWrite('foods', (s) => { s.put(food) }, () => {})
+  mirrorWrite((m) => {
+    const idx = m.foods.findIndex((x) => x.id === food.id)
+    if (idx >= 0) m.foods[idx] = food
+    else m.foods.push(food)
   })
 }
 
 export async function deleteFood(id: string): Promise<void> {
-  if (!usingIdb) {
-    const s = readSnapshot()
-    s.foods = s.foods.filter((f) => f.id !== id)
-    writeSnapshot(s)
-    return
-  }
-  await idbWrite('foods', (s) => { s.delete(id) }, () => {
-    const s = readSnapshot()
-    s.foods = s.foods.filter((f) => f.id !== id)
-    writeSnapshot(s)
+  if (usingIdb) await idbWrite('foods', (s) => { s.delete(id) }, () => {})
+  mirrorWrite((m) => {
+    m.foods = m.foods.filter((x) => x.id !== id)
   })
 }
 
@@ -392,10 +452,9 @@ export async function importAll(data: AppData): Promise<void> {
     // wholesale when it is folded back, not just union in.
     authoritative: true,
   }
-  if (!usingIdb) {
-    writeSnapshot(staged)
-    return
-  }
+  // Mirror first: an import has to survive even if IndexedDB rejects it.
+  setMirror({ ...staged, meals: slimMeals(staged.meals) })
+  if (!usingIdb) return
   try {
     const db = await getDb()
     await new Promise<void>((resolve, reject) => {
@@ -412,9 +471,8 @@ export async function importAll(data: AppData): Promise<void> {
       t.onabort = () => reject(t.error)
     })
   } catch (err) {
-    console.warn('IndexedDB import failed, staging in localStorage instead', err)
+    console.warn('IndexedDB import failed, keeping the localStorage mirror', err)
     usingIdb = false
-    writeSnapshot(staged)
   }
 }
 

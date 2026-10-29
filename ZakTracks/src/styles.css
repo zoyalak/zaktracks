@@ -94,15 +94,24 @@ h4 {
   margin: 0 auto;
   /* Top padding clears the phone's status bar (time/menu) so no header text
      is hidden under it. */
-  padding: calc(var(--safe-t) + 8px) 16px calc(var(--nav-h) + var(--safe-b) + 28px);
+  padding: calc(var(--safe-t) + 8px) 16px calc(var(--nav-h) + var(--safe-b) + 46px);
   min-height: 100%;
 }
 
-/* Centered app logo, sitting just below the status bar */
+/* Centered app logo, sitting just below the status bar, with the profile
+   shortcut pinned to the top right (icon only — no label). */
 .brandbar {
+  position: relative;
   display: flex;
+  align-items: center;
   justify-content: center;
   padding: 2px 0 6px;
+}
+
+.brand-action {
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 /* ---------------------------------------------------------------- header */
@@ -1042,10 +1051,14 @@ input[type='range']:focus-visible {
   margin-bottom: 3px;
 }
 
+/* Add-meal button: sits in the middle of the bottom nav, in the empty centre
+   column the tabs leave for it. It pokes only slightly above the bar so it
+   never covers the meal rows scrolling past behind it. */
 .fab {
   position: fixed;
-  right: max(18px, calc(50vw - 240px + 18px));
-  bottom: calc(var(--nav-h) + var(--safe-b) + 18px);
+  left: 50%;
+  margin-left: -29px;
+  bottom: calc(var(--nav-h) + var(--safe-b) - 46px);
   width: 58px;
   height: 58px;
   border-radius: 20px;
@@ -1055,7 +1068,7 @@ input[type='range']:focus-visible {
   display: grid;
   place-items: center;
   box-shadow: 0 12px 26px rgba(176, 138, 98, 0.35);
-  z-index: 25;
+  z-index: 40;
   transition: transform 0.08s ease;
 }
 

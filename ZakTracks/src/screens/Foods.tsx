@@ -1,13 +1,14 @@
 import { useMemo, useRef, useState } from 'react'
 import { useApp } from '../state/AppContext'
 import { BUILTIN_FOODS, foodsByCategory, searchFoods } from '../lib/foods'
-import type { Food } from '../lib/types'
-import { scaleExtras } from '../lib/types'
+import type { Food, LogItem } from '../lib/types'
+import { itemsToGrams, scaleExtras, scaleItems } from '../lib/types'
 import { makeId } from '../lib/date'
 import { ApiError, analyzeLabel } from '../lib/api'
 import { fileToDataUrl } from '../lib/photo'
 import FoodEditor from '../components/FoodEditor'
-import { Field, Loading, Notice, Sheet } from '../components/ui'
+import RecipeEditor from '../components/RecipeEditor'
+import { Choice, Field, Loading, Notice, Sheet } from '../components/ui'
 
 export default function Foods() {
   const { foods, profile, upsertFood, removeFood, upsertMeal } = useApp()
@@ -15,6 +16,8 @@ export default function Foods() {
   const [filter, setFilter] = useState<'all' | 'mine' | string>('all')
   const [detail, setDetail] = useState<Food | null>(null)
   const [editor, setEditor] = useState<{ food: Food | null; scanned: boolean } | null>(null)
+  const [chooser, setChooser] = useState(false)
+  const [recipe, setRecipe] = useState<{ food: Food | null } | null>(null)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [grams, setGrams] = useState('100')
@@ -82,6 +85,7 @@ export default function Foods() {
     try {
       await upsertFood(food)
       setEditor(null)
+      setRecipe(null)
     } catch (err) {
       console.error('Could not save food', err)
       setSaveError(
@@ -92,21 +96,32 @@ export default function Foods() {
     }
   }
 
+  const openDetail = (f: Food) => {
+    setDetail(f)
+    // A recipe is logged by its batch size; everything else starts at 100 g.
+    setGrams(
+      f.source === 'recipe'
+        ? String(f.gramsPerServing || itemsToGrams(f.ingredients ?? []) || 100)
+        : '100',
+    )
+  }
+
   const addToToday = async (food: Food) => {
     if (!profile) return
     setSaveError(null)
     const g = parseFloat(grams)
-    const factor = food.per === 'serving' ? 1 : (Number.isFinite(g) && g > 0 ? g : 100) / 100
     const now = new Date()
-    await upsertMeal({
-      id: makeId(),
-      date: `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}-${`${now.getDate()}`.padStart(2, '0')}`,
-      time: `${`${now.getHours()}`.padStart(2, '0')}:${`${now.getMinutes()}`.padStart(2, '0')}`,
-      name: food.name,
-      note: '',
-      source: 'food',
-      createdAt: Date.now(),
-      items: [
+    let items: LogItem[]
+
+    if (food.source === 'recipe' && food.ingredients?.length) {
+      // Log the recipe as one row per ingredient, scaled to the amount being
+      // added, so the day keeps the same breakdown the recipe was built with.
+      const batch = food.gramsPerServing || itemsToGrams(food.ingredients)
+      const target = Number.isFinite(g) && g > 0 ? g : batch
+      items = scaleItems(food.ingredients, batch > 0 ? target / batch : 1)
+    } else {
+      const factor = food.per === 'serving' ? 1 : (Number.isFinite(g) && g > 0 ? g : 100) / 100
+      items = [
         {
           name: food.name,
           grams: food.per === 'serving' ? (food.gramsPerServing ?? null) : Number.isFinite(g) ? g : 100,
@@ -117,7 +132,18 @@ export default function Foods() {
           extras: scaleExtras(food.extras, factor),
           foodId: food.id,
         },
-      ],
+      ]
+    }
+
+    await upsertMeal({
+      id: makeId(),
+      date: `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}-${`${now.getDate()}`.padStart(2, '0')}`,
+      time: `${`${now.getHours()}`.padStart(2, '0')}:${`${now.getMinutes()}`.padStart(2, '0')}`,
+      name: food.name,
+      note: '',
+      source: 'food',
+      createdAt: Date.now(),
+      items,
     })
     setDetail(null)
   }
@@ -133,8 +159,8 @@ export default function Foods() {
         </div>
         <button
           className="icon-btn"
-          aria-label="New food"
-          onClick={() => setEditor({ food: null, scanned: false })}
+          aria-label="Add to your food library"
+          onClick={() => setChooser(true)}
         >
           +
         </button>
@@ -204,16 +230,16 @@ export default function Foods() {
           <div key={group.category}>
             <div className="section-label">{group.category}</div>
             <div className="card">
-              {group.items.map((f) => (
-                <FoodRow key={f.id} food={f} onOpen={setDetail} />
-              ))}
+          {group.items.map((f) => (
+            <FoodRow key={f.id} food={f} onOpen={openDetail} />
+          ))}
             </div>
           </div>
         ))
       ) : (
         <div className="card">
           {results.map((f) => (
-            <FoodRow key={f.id} food={f} onOpen={setDetail} />
+            <FoodRow key={f.id} food={f} onOpen={openDetail} />
           ))}
           {!results.length && (
             <div className="empty">
@@ -230,13 +256,23 @@ export default function Foods() {
         open={Boolean(detail)}
         onClose={() => setDetail(null)}
         title={detail?.name ?? ''}
-        sub={detail?.brand || (detail?.source === 'builtin' ? 'Built-in food' : 'Your food')}
+        sub={
+          detail?.source === 'recipe'
+            ? 'Your recipe'
+            : detail?.brand || (detail?.source === 'builtin' ? 'Built-in food' : 'Your food')
+        }
       >
         {detail && (
           <>
             <div className="kv">
               <span className="k">Values are per</span>
-              <span className="v">{detail.per === 'serving' ? detail.servingLabel ?? 'serving' : '100 g'}</span>
+              <span className="v">
+                {detail.source === 'recipe'
+                  ? `the whole recipe (${detail.ingredients?.length ?? 0} ingredients)`
+                  : detail.per === 'serving'
+                    ? detail.servingLabel ?? 'serving'
+                    : '100 g'}
+              </span>
             </div>
             <div className="kv">
               <span className="k">Calories</span>
@@ -255,8 +291,27 @@ export default function Foods() {
               <span className="v num">{detail.fat} g</span>
             </div>
 
+            {detail.source === 'recipe' && detail.ingredients?.length ? (
+              <>
+                <div className="divider" />
+                <div className="section-label">Ingredients</div>
+                {detail.ingredients.map((ing, i) => (
+                  <div className="list-item" key={`${ing.name}-${i}`}>
+                    <span className="grow">
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{ing.name}</span>
+                      <span className="tiny" style={{ display: 'block' }}>
+                        {ing.grams != null ? `${ing.grams} g · ` : ''}
+                        {Math.round(ing.protein)}P · {Math.round(ing.carbs)}C · {Math.round(ing.fat)}F
+                      </span>
+                    </span>
+                    <span className="num muted">{ing.kcal}</span>
+                  </div>
+                ))}
+              </>
+            ) : null}
+
             <div className="divider" />
-            {detail.per === '100g' ? (
+            {detail.per === '100g' || detail.source === 'recipe' ? (
               <Field label="Add to today (g)">
                 <div className="suffix">
                   <input
@@ -283,11 +338,12 @@ export default function Foods() {
                 <button
                   className="btn mt"
                   onClick={() => {
-                    setEditor({ food: detail, scanned: false })
+                    if (detail.source === 'recipe') setRecipe({ food: detail })
+                    else setEditor({ food: detail, scanned: false })
                     setDetail(null)
                   }}
                 >
-                  ✏️ Edit & correct
+                  {detail.source === 'recipe' ? '🧾 Edit recipe' : '✏️ Edit & correct'}
                 </button>
                 <button
                   className="btn danger mt"
@@ -324,22 +380,72 @@ export default function Foods() {
           onSave={saveFood}
         />
       )}
+
+      <Sheet
+        open={chooser}
+        onClose={() => setChooser(false)}
+        title="Add to your food library"
+        sub="What are you adding?"
+      >
+        <Choice
+          emoji="🧾"
+          title="Recipe"
+          desc="Several ingredients saved as one — overnight oats, curry, a sandwich. The AI estimates each ingredient as you add it, and you can correct anything."
+          onClick={() => {
+            setChooser(false)
+            setRecipe({ food: null })
+          }}
+        />
+        <Choice
+          emoji="🏷️"
+          title="Single food"
+          desc="One item with its own macros — a snack, a jar of peanut butter, a drink."
+          onClick={() => {
+            setChooser(false)
+            setEditor({ food: null, scanned: false })
+          }}
+        />
+        <button className="btn ghost" style={{ width: '100%' }} onClick={() => setChooser(false)}>
+          Cancel
+        </button>
+      </Sheet>
+
+      {recipe && (
+        <RecipeEditor
+          food={recipe.food}
+          saving={saving}
+          error={saveError}
+          onClose={() => {
+            if (saving) return
+            setSaveError(null)
+            setRecipe(null)
+          }}
+          onSave={saveFood}
+        />
+      )}
     </>
   )
 }
 
 function FoodRow({ food, onOpen }: { food: Food; onOpen: (f: Food) => void }) {
+  const isRecipe = food.source === 'recipe'
   return (
     <button className="list-item" onClick={() => onOpen(food)}>
       <span className="grow">
         <span style={{ fontWeight: 600, fontSize: 14 }}>{food.name}</span>
         <span className="tiny" style={{ display: 'block' }}>
-          {food.per === 'serving' ? food.servingLabel ?? 'per serving' : 'per 100 g'} · {food.protein}P ·{' '}
-          {food.carbs}C · {food.fat}F
+          {isRecipe
+            ? `recipe · ${food.ingredients?.length ?? 0} ingredients · ${food.gramsPerServing ?? ''}${food.gramsPerServing ? ' g' : ''}`
+            : `${food.per === 'serving' ? food.servingLabel ?? 'per serving' : 'per 100 g'} · ${food.protein}P ·${' '}
+              ${food.carbs}C · ${food.fat}F`}
         </span>
       </span>
       <span className="row" style={{ gap: 6 }}>
-        {food.source !== 'builtin' && <span className="chip">yours</span>}
+        {isRecipe ? (
+          <span className="chip">recipe</span>
+        ) : (
+          food.source !== 'builtin' && <span className="chip">yours</span>
+        )}
         <span className="num muted">{food.kcal}</span>
       </span>
     </button>

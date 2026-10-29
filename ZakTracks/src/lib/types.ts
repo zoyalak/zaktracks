@@ -152,7 +152,12 @@ export interface Food {
   fat: number
   /** Extended macros per 100 g / serving, when known (from a label scan). */
   extras?: ExtraMacros
-  source: 'builtin' | 'label' | 'manual'
+  source: 'builtin' | 'label' | 'manual' | 'recipe'
+  /**
+   * For a recipe (source === 'recipe'): one entry per ingredient, macros for
+   * the amount given. The fields above hold the totals for the whole batch.
+   */
+  ingredients?: LogItem[]
   category?: string
   createdAt?: number
 }
@@ -219,5 +224,26 @@ export const scaleExtras = (
   }
 }
 
-export const mealToMacro = (m: MealEntry): Macro =>
-  m.items.reduce((acc, item) => addMacro(acc, itemToMacro(item)), emptyMacro())
+export const itemsToMacro = (items: LogItem[]): Macro =>
+  items.reduce((acc, item) => addMacro(acc, itemToMacro(item)), emptyMacro())
+
+export const mealToMacro = (m: MealEntry): Macro => itemsToMacro(m.items)
+
+/** Sum the grams a list of items represents, ignoring entries with no weight. */
+export const itemsToGrams = (items: LogItem[]): number =>
+  Math.round(items.reduce((s, i) => s + (i.grams ?? 0), 0) * 10) / 10
+
+/**
+ * Scale every item by a portion factor — used when a saved recipe is logged
+ * at a different size than the batch it was built from.
+ */
+export const scaleItems = (items: LogItem[], factor: number): LogItem[] =>
+  items.map((i) => ({
+    ...i,
+    grams: i.grams === null ? null : Math.round(i.grams * factor * 10) / 10,
+    kcal: Math.round(i.kcal * factor),
+    protein: Math.round(i.protein * factor * 10) / 10,
+    carbs: Math.round(i.carbs * factor * 10) / 10,
+    fat: Math.round(i.fat * factor * 10) / 10,
+    extras: scaleExtras(i.extras, factor),
+  }))

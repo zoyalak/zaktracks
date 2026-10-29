@@ -5,14 +5,12 @@ import { mealsOnDate, targetsFor, totalsFor } from '../lib/selectors'
 import { displayWeight, toKg, weightLabel } from '../lib/units'
 import type { ExtraMacros, MealEntry } from '../lib/types'
 import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '../lib/types'
-import AddMealSheet from '../components/AddMealSheet'
 import MealSheet from '../components/MealSheet'
 import { Disclosure, Field, MacroBar, Notice, ProgressRing, Sheet } from '../components/ui'
 
 export default function Today() {
   const { profile, meals, settings, upsertMeal, removeMeal, logWeight } = useApp()
   const [date, setDate] = useState(todayKey())
-  const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<{ meal: MealEntry; isNew: boolean } | null>(null)
   const [weighOpen, setWeighOpen] = useState(false)
   const [weightInput, setWeightInput] = useState('')
@@ -217,18 +215,6 @@ export default function Today() {
           walk burns roughly 150 kcal — or just let tomorrow's deficit even it out.
         </Notice>
       )}
-
-      <button className="fab" aria-label="Add meal" onClick={() => setAdding(true)}>
-        +
-      </button>
-
-      <AddMealSheet
-        open={adding}
-        onClose={() => setAdding(false)}
-        date={date}
-        goalKcal={targets.goalKcal}
-        remaining={remaining}
-      />
 
       {editing && (
         <MealSheet

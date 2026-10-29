@@ -1,5 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
+import { Fragment, useCallback, useRef, useState } from 'react'
 import { useApp } from './state/AppContext'
+import { todayKey } from './lib/date'
+import { targetsFor, totalsFor } from './lib/selectors'
+import AddMealSheet from './components/AddMealSheet'
 import Onboarding from './components/Onboarding'
 import Today from './screens/Today'
 import Week from './screens/Week'
@@ -11,17 +14,17 @@ import { CloverLogo, Sheet } from './components/ui'
 type Tab = 'today' | 'week' | 'chat' | 'foods' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'today', label: 'Today', icon: '🍽️' },
-  { id: 'week', label: 'Logs', icon: '📈' },
+  { id: 'today', label: 'Track', icon: '🍽️' },
   { id: 'chat', label: 'Chat', icon: '💬' },
   { id: 'foods', label: 'Foods', icon: '🛒' },
-  { id: 'profile', label: 'You', icon: '⚙️' },
+  { id: 'week', label: 'Logs', icon: '📈' },
 ]
 
 export default function App() {
-  const { ready, profile } = useApp()
+  const { ready, profile, meals } = useApp()
   const [tab, setTab] = useState<Tab>('today')
   const [pendingTab, setPendingTab] = useState<Tab | null>(null)
+  const [adding, setAdding] = useState(false)
 
   // The You tab registers a guard here so switching tabs mid-edit can ask
   // "save changes?" instead of silently dropping the draft.
@@ -69,15 +72,26 @@ export default function App() {
     })
   }
 
+  const targets = targetsFor(profile)
+  const remaining = targets.goalKcal - totalsFor(meals, todayKey()).kcal
+
   return (
     <>
       <div className="app">
+
         <div className="brandbar">
           <CloverLogo
             size={30}
             className="brand-dot"
             style={{ width: 30, height: 30, display: 'block' }}
           />
+          <button
+            className="icon-btn brand-action"
+            aria-label="Your profile"
+            onClick={() => goTab('profile')}
+          >
+            👤
+          </button>
         </div>
         {tab === 'today' && <Today />}
         {tab === 'week' && <Week />}
@@ -87,21 +101,35 @@ export default function App() {
       </div>
       <nav className="bottomnav">
         <div className="bottomnav-inner">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={`navitem${tab === t.id ? ' active' : ''}`}
-              onClick={() => goTab(t.id)}
-              aria-current={tab === t.id}
-            >
-              <span className="ico" aria-hidden>
-                {t.icon}
-              </span>
-              {t.label}
-            </button>
+          {TABS.map((t, i) => (
+            <Fragment key={t.id}>
+              {/* Empty middle column that leaves room for the + button. */}
+              {i === 2 && <span className="navslot" aria-hidden />}
+              <button
+                className={`navitem${tab === t.id ? ' active' : ''}`}
+                onClick={() => goTab(t.id)}
+                aria-current={tab === t.id}
+              >
+                <span className="ico" aria-hidden>
+                  {t.icon}
+                </span>
+                {t.label}
+              </button>
+            </Fragment>
           ))}
         </div>
+        <button className="fab" aria-label="Add meal" onClick={() => setAdding(true)}>
+          +
+        </button>
       </nav>
+
+      <AddMealSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        date={todayKey()}
+        goalKcal={targets.goalKcal}
+        remaining={remaining}
+      />
       {pendingTab !== null && (
         <Sheet
           open

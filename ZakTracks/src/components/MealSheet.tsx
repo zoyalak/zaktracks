@@ -28,6 +28,20 @@ export default function MealSheet({
   const [note, setNote] = useState(meal.note)
   const [items, setItems] = useState<LogItem[]>(meal.items.length ? meal.items : [emptyItem()])
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /**
+   * Exactly what was typed in each macro field, kept per item so a field the
+   * user backs all the way up stays empty instead of snapping back to 0.
+   * The parsed number still goes into `items` (0 when blank) so totals never
+   * break — only the display differs.
+   */
+  const [raws, setRaws] = useState<Record<string, string>[]>(() =>
+    meal.items.length ? meal.items.map(() => ({})) : [{}],
+  )
+  const patchRaw = (index: number, key: string, text: string) =>
+    setRaws((prev) => prev.map((r, i) => (i === index ? { ...r, [key]: text } : r)))
+  const clearRaw = (index: number) => setRaws((prev) => prev.map((r, i) => (i === index ? {} : r)))
+  /** What the field shows: the raw keystrokes if the user has edited it, else the number. */
+  const displayNum = (index: number, key: string, value: number) => raws[index]?.[key] ?? String(value)
 
   const totals = useMemo(
     () =>
@@ -68,6 +82,9 @@ export default function MealSheet({
   const setGrams = (index: number, raw: string) => {
     const parsed = parseFloat(raw)
     const grams = raw.trim() === '' || !Number.isFinite(parsed) || parsed < 0 ? null : parsed
+    // Macros may be recomputed from the new portion — drop any typed text for
+    // them first so the fields show the rescaled numbers, not stale keystrokes.
+    clearRaw(index)
     setItems((prev) =>
       prev.map((it, i) => {
         if (i !== index) return it
@@ -93,7 +110,11 @@ export default function MealSheet({
   const numeric =
     (index: number, key: 'kcal' | 'protein' | 'carbs' | 'fat') =>
     (e: ChangeEvent<HTMLInputElement>) => {
-      const n = parseFloat(e.target.value)
+      const text = e.target.value
+      const n = parseFloat(text)
+      // Emptying the field keeps it empty on screen (no forced 0) while the
+      // stored value falls back to 0 so the meal's totals still add up.
+      patchRaw(index, key, text)
       patch(index, { [key]: Number.isFinite(n) && n >= 0 ? n : 0 } as Partial<LogItem>)
     }
 
@@ -161,7 +182,11 @@ export default function MealSheet({
             <button
               className="icon-btn"
               aria-label="Remove item"
-              onClick={() => setItems((prev) => prev.filter((_, i) => i !== index))}
+              onClick={() => {
+                setItems((prev) => prev.filter((_, i) => i !== index))
+                // Indexes shift after a removal — shift the typed text with them.
+                setRaws((prev) => prev.filter((_, i) => i !== index))
+              }}
             >
               ✕
             </button>
@@ -169,19 +194,19 @@ export default function MealSheet({
           <div className="edit-macros">
             <div>
               <label>kcal</label>
-              <input className="input" type="number" inputMode="decimal" value={item.kcal} onChange={numeric(index, 'kcal')} />
+              <input className="input" type="number" inputMode="decimal"              value={displayNum(index, 'kcal', item.kcal)} onChange={numeric(index, 'kcal')} />
             </div>
             <div>
               <label>protein</label>
-              <input className="input" type="number" inputMode="decimal" value={item.protein} onChange={numeric(index, 'protein')} />
+              <input className="input" type="number" inputMode="decimal"              value={displayNum(index, 'protein', item.protein)} onChange={numeric(index, 'protein')} />
             </div>
             <div>
               <label>carbs</label>
-              <input className="input" type="number" inputMode="decimal" value={item.carbs} onChange={numeric(index, 'carbs')} />
+              <input className="input" type="number" inputMode="decimal"              value={displayNum(index, 'carbs', item.carbs)} onChange={numeric(index, 'carbs')} />
             </div>
             <div>
               <label>fat</label>
-              <input className="input" type="number" inputMode="decimal" value={item.fat} onChange={numeric(index, 'fat')} />
+              <input className="input" type="number" inputMode="decimal"              value={displayNum(index, 'fat', item.fat)} onChange={numeric(index, 'fat')} />
             </div>
           </div>
         </div>
@@ -190,7 +215,10 @@ export default function MealSheet({
       <button
         className="btn ghost small"
         style={{ width: '100%' }}
-        onClick={() => setItems((prev) => [...prev, emptyItem()])}
+        onClick={() => {
+          setItems((prev) => [...prev, emptyItem()])
+          setRaws((prev) => [...prev, {}])
+        }}
       >
         + Add item
       </button>

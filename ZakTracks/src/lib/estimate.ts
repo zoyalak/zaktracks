@@ -1,4 +1,5 @@
 import type { Food, LogItem } from './types'
+import { scaleExtras } from './types'
 import { BUILTIN_FOODS, scoreFood } from './foods'
 
 /** Rough default portions (grams) when the user doesn't specify one. */
@@ -95,6 +96,43 @@ export function estimateFromText(
   }
 
   return { items, unmatched }
+}
+
+/**
+ * Match one ingredient against the food table and scale it to `grams`.
+ * This is the fallback when the AI can't answer: returns null when nothing
+ * matches well enough to trust.
+ */
+export function matchIngredient(
+  name: string,
+  grams: number,
+  custom: Food[] = [],
+  builtin: Food[] = BUILTIN_FOODS,
+): LogItem | null {
+  let best: Food | null = null
+  let bestScore = 0
+  for (const food of [...custom, ...builtin]) {
+    // Saved recipes are already made of ingredients — never match one of
+    // those when the user is naming a plain ingredient.
+    if (food.source === 'recipe') continue
+    const s = scoreFood(food, name)
+    if (s > bestScore) {
+      bestScore = s
+      best = food
+    }
+  }
+  if (!best || bestScore < 25) return null
+  const factor = best.per === 'serving' ? grams / (best.gramsPerServing || 100) : grams / 100
+  return {
+    name,
+    grams,
+    kcal: Math.round(best.kcal * factor),
+    protein: round1(best.protein * factor),
+    carbs: round1(best.carbs * factor),
+    fat: round1(best.fat * factor),
+    extras: scaleExtras(best.extras, factor),
+    foodId: best.id,
+  }
 }
 
 /** Sum items into a label like "Chicken and rice". */

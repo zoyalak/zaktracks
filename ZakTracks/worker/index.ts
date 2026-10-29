@@ -159,6 +159,18 @@ const CHAT_SCHEMA = {
   propertyOrdering: ['reply'],
 }
 
+// One ingredient of a recipe: its nutrition for the amount being used.
+const INGREDIENT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    name: { type: 'STRING' },
+    ...MACRO_PROPS,
+    extras: EXTRA_OBJECT,
+  },
+  required: ['name', 'kcal', 'protein', 'carbs', 'fat', 'extras'],
+  propertyOrdering: ['name', 'kcal', 'protein', 'carbs', 'fat', 'extras'],
+}
+
 const CHAT_PROMPT = `You are ZakTracks, a friendly nutrition coach living inside the user's calorie-tracking app.
 
 The app sends you today's live numbers: the calorie goal, how much has been eaten, what is left, the macro targets, and progress against them. Use them — they are the source of truth.
@@ -170,6 +182,17 @@ Rules:
 - Practical home cooking only; no specialty equipment; be honest that macro numbers are estimates.
 - Never invent app numbers you were not given, and never claim something was logged when it was not.
 - Off-topic questions: answer briefly in one sentence and steer back to food or goals gently.`
+
+const INGREDIENT_PROMPT = `You are a precise nutrition analyst.
+
+You are given ONE ingredient and the amount of it going into a recipe (e.g. "oats, 60 g"). Return the nutrition for exactly that amount.
+
+Rules:
+- kcal, protein, carbs and fat are for THE AMOUNT GIVEN, never per 100 g. protein, carbs and fat are grams.
+- The amount is edible weight in grams (millilitres count as grams for liquids).
+- Assume a plain, typical version of the ingredient unless a brand or preparation is named (whole milk, plain yoghurt, rolled oats).
+- "name" is the ingredient cleaned up for display, e.g. "whole milk".
+- For every item also estimate "fiber", "sugar" and "saturatedFat" in grams, and "sodium", "potassium", "calcium" and "iron" in milligrams, for the same amount, using typical nutrition-table values. Always return real estimates — never null, never 0 unless the food genuinely contains none of that nutrient.`
 
 const MEAL_PROMPT = `You are a precise nutrition analyst looking at a photo of someone's meal.
 
@@ -606,6 +629,58 @@ const ACTIVITY_WORDS: Record<string, string> = {
   very_active: 'athlete (twice-daily training or physical job)',
 }
 
+/** Nutrition for one recipe ingredient at the amount the user is using. */
+async function handleIngredient(request: Request, env: Env): Promise<Response> {
+  let body: { name?: unknown; grams?: unknown }
+  try {
+    body = await request.json()
+  } catch {
+    const err = new Error('Expected a JSON body.') as Error & { status: number; code: string }
+    err.status = 400
+    err.code = 'BAD_REQUEST'
+    throw err
+  }
+  const name = str(body.name)
+  const grams = num(body.grams)
+  if (!name) {
+    const err = new Error('An ingredient name is required.') as Error & { status: number; code: string }
+    err.status = 400
+    err.code = 'BAD_REQUEST'
+    throw err
+  }
+  if (!(grams > 0)) {
+    const err = new Error('The amount in grams is required.') as Error & { status: number; code: string }
+    err.status = 400
+    err.code = 'BAD_REQUEST'
+    throw err
+  }
+
+  const { text, model } = await callModel(
+    env,
+    [{ text: `Ingredient: ${name}\nAmount: ${grams} g` }],
+    INGREDIENT_SCHEMA,
+    INGREDIENT_PROMPT,
+  )
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    return json(errorBody('The estimate came back in an unexpected format.', 'PARSE'), 502)
+  }
+  const o = raw as Record<string, unknown>
+
+  return json({
+    name: str(o.name, name) || name,
+    grams,
+    kcal: num(o.kcal),
+    protein: num(o.protein),
+    carbs: num(o.carbs),
+    fat: num(o.fat),
+    extras: readExtras(o),
+    model,
+  })
+}
+
 async function handleGoals(request: Request, env: Env): Promise<Response> {
   let body: { profile?: Record<string, unknown>; goalKcal?: unknown }
   try {
@@ -738,6 +813,9 @@ export default {
         }
         if (path === '/api/analyze/label' && request.method === 'POST') {
           return await handleLabel(request, env)
+        }
+        if (path === '/api/analyze/ingredient' && request.method === 'POST') {
+          return await handleIngredient(request, env)
         }
         if (path === '/api/goals' && request.method === 'POST') {
           return await handleGoals(request, env)
