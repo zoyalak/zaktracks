@@ -1,0 +1,11 @@
+# Local AI keys for `npm run api` (wrangler dev). This file is gitignored —
+# never commit real keys. Copy this template to `worker/.dev.vars` and fill in
+# the values you have; either key alone is enough, because the worker falls
+# back from one provider to the other when one is rate limited.
+#
+#   Primary   GROQ_API_KEY         https://console.groq.com/keys
+#   Fallback  OPENROUTER_API_KEY   https://openrouter.ai/keys
+#
+# Optional overrides (these defaults are what the app uses):
+# AI_MODEL=qwen/qwen3.8-27b
+# AI_FALLBACK_MODEL=nvidia/nemotron-3.5-super-vl:free
