@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { LogItem, MealEntry } from '../lib/types'
 import { EXTRA_KEYS, EXTRA_META, emptyMacro, itemsToExtras, roundMacro, scaleExtras } from '../lib/types'
-import { makeId } from '../lib/date'
+import { formatDayLabel, makeId, shiftKey, todayKey } from '../lib/date'
 import { Disclosure, Field, Notice, Sheet } from './ui'
 
 const emptyItem = (): LogItem => ({ name: '', grams: null, kcal: 0, protein: 0, carbs: 0, fat: 0 })
@@ -62,6 +62,13 @@ export default function MealSheet({
   const extras = useMemo(() => itemsToExtras(items), [items])
 
   const remainingAfter = remainingBefore - totals.kcal
+  /** Where this meal belongs, in words: today, yesterday or a date. */
+  const dayWord =
+    meal.date === todayKey()
+      ? 'today'
+      : meal.date === shiftKey(todayKey(), -1)
+        ? 'yesterday'
+        : formatDayLabel(meal.date, { weekday: 'short', day: 'numeric', month: 'short' })
   const hasContent = name.trim().length > 0 || items.some((i) => i.name.trim() || i.kcal > 0)
 
   const patch = (index: number, changes: Partial<LogItem>) =>
@@ -242,7 +249,9 @@ export default function MealSheet({
       </Disclosure>
 
       <div className="total-strip">
-        <span className="muted">{remainingAfter >= 0 ? 'Left today' : 'Over your goal by'}</span>
+        <span className="muted">
+          {remainingAfter >= 0 ? (dayWord === 'today' ? 'Left today' : `Left on ${dayWord}`) : 'Over your goal by'}
+        </span>
         <b className="num" style={{ color: remainingAfter >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
           {Math.abs(remainingAfter).toLocaleString()} kcal
         </b>
@@ -255,7 +264,7 @@ export default function MealSheet({
           Cancel
         </button>
         <button className="btn primary" disabled={!hasContent} onClick={save}>
-          {isNew ? 'Add to today' : 'Save changes'}
+          {isNew ? `Add to ${dayWord}` : 'Save changes'}
         </button>
       </div>
 

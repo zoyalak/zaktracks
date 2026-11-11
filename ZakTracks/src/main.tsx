@@ -23,6 +23,33 @@ createRoot(root).render(
   </StrictMode>,
 )
 
+// Keep the installed app fresh without reinstalling it. The worker is
+// network-first for the shell, so a deployment is picked up on the next launch
+// or while the app stays open; when a new worker takes control the page
+// reloads once, and the signed-in session is untouched.
+if ('serviceWorker' in navigator) {
+  const hadController = Boolean(navigator.serviceWorker.controller)
+  let reloading = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // Only reload for an actual update — not on the very first install.
+    if (!hadController || reloading) return
+    reloading = true
+    window.location.reload()
+  })
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .then((reg) => {
+        const check = () => void reg.update().catch(() => undefined)
+        setInterval(check, 15 * 60 * 1000)
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') check()
+        })
+      })
+      .catch(() => undefined)
+  })
+}
+
 // Progressive web app: prompt for install once the browser suggests it.
 let deferredInstall: Event | null = null
 window.addEventListener('beforeinstallprompt', (e) => {

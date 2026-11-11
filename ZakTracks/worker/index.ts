@@ -9,11 +9,28 @@
  * fallback is Nemotron 3.5 Super VL (free) via OpenRouter.
  */
 
+// Minimal D1 surface used here (the project has no workers-types dependency).
+interface D1Result<T = unknown> {
+  results?: T[]
+  success: boolean
+}
+interface D1Stmt {
+  bind(...values: unknown[]): D1Stmt
+  first<T = unknown>(col?: string): Promise<T | null>
+  run(): Promise<D1Result>
+  all<T = unknown>(): Promise<D1Result<T>>
+}
+interface D1Database {
+  prepare(query: string): D1Stmt
+  batch(statements: D1Stmt[]): Promise<unknown[]>
+}
+
 interface Env {
   OPENROUTER_API_KEY?: string
   GROQ_API_KEY?: string
   AI_MODEL?: string
   AI_FALLBACK_MODEL?: string
+  DB?: D1Database
   ASSETS?: { fetch(request: Request): Promise<Response> }
 }
 
@@ -785,6 +802,480 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   return json({ reply, model })
 }
 
+// ---------------------------------------------------------------------------
+// Accounts and per-user sync
+// ---------------------------------------------------------------------------
+
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 90 // 90 days
+/** Renew a session once less than this much life is left. */
+const SESSION_RENEW_AFTER_MS = 1000 * 60 * 60 * 24 * 60 // 60 days
+const PBKDF2_ITERATIONS = 100_000
+const DDL = [
+  `CREATE TABLE IF NOT EXISTS users (
+     id TEXT PRIMARY KEY,
+     email TEXT NOT NULL UNIQUE,
+     pw_hash TEXT NOT NULL,
+     salt TEXT NOT NULL,
+     created_at INTEGER NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS sessions (
+     token TEXT PRIMARY KEY,
+     user_id TEXT NOT NULL,
+     expires_at INTEGER NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS user_state (
+     user_id TEXT NOT NULL,
+     key TEXT NOT NULL,
+     data TEXT NOT NULL,
+     updated_at INTEGER NOT NULL,
+     PRIMARY KEY (user_id, key)
+   )`,
+  `CREATE TABLE IF NOT EXISTS meals (
+     user_id TEXT NOT NULL,
+     id TEXT NOT NULL,
+     data TEXT NOT NULL,
+     updated_at INTEGER NOT NULL,
+     PRIMARY KEY (user_id, id)
+   )`,
+  `CREATE TABLE IF NOT EXISTS foods (
+     user_id TEXT NOT NULL,
+     id TEXT NOT NULL,
+     data TEXT NOT NULL,
+     updated_at INTEGER NOT NULL,
+     PRIMARY KEY (user_id, id)
+   )`,
+]
+
+let schemaReady: Promise<void> | null = null
+
+function ensureSchema(db: D1Database): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = (async () => {
+      for (const ddl of DDL) await db.prepare(ddl).run()
+    })().catch((err) => {
+      schemaReady = null // let the next request retry instead of caching the failure
+      throw err
+    })
+  }
+  return schemaReady
+}
+
+const encoder = new TextEncoder()
+
+const toHex = (bytes: Uint8Array): string =>
+  [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
+
+const fromHex = (hex: string): Uint8Array => {
+  const out = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  return out
+}
+
+const randomHex = (n: number): string => toHex(crypto.getRandomValues(new Uint8Array(n)))
+
+/** PBKDF2-SHA256 over the per-user salt. The plain password is never stored. */
+async function hashPassword(password: string, saltHex: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
+    'deriveBits',
+  ])
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: fromHex(saltHex) as unknown as BufferSource,
+      iterations: PBKDF2_ITERATIONS,
+      hash: 'SHA-256',
+    },
+    key,
+    256,
+  )
+  return toHex(new Uint8Array(bits))
+}
+
+/** Constant-time string compare, so a wrong hash can't be timed out byte by byte. */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
+interface AccountUser {
+  id: string
+  email: string
+}
+
+const bearer = (request: Request): string | null => {
+  const h = request.headers.get('authorization') ?? ''
+  const m = /^Bearer\s+(.+)$/i.exec(h.trim())
+  return m ? m[1].trim() : null
+}
+
+async function currentUser(request: Request, db: D1Database): Promise<AccountUser | null> {
+  const token = bearer(request)
+  if (!token) return null
+  const now = Date.now()
+  const row = await db
+    .prepare(
+      `SELECT u.id AS id, u.email AS email, s.expires_at AS expiresAt FROM sessions s
+         JOIN users u ON u.id = s.user_id
+        WHERE s.token = ? AND s.expires_at > ?`,
+    )
+    .bind(token, now)
+    .first<AccountUser & { expiresAt: number }>()
+  if (!row) return null
+
+  // Sliding expiry: as long as the app is opened now and then, the session
+  // keeps renewing, so a phone that was signed in once stays signed in.
+  if (row.expiresAt - now < SESSION_RENEW_AFTER_MS) {
+    await db
+      .prepare('UPDATE sessions SET expires_at = ? WHERE token = ?')
+      .bind(now + SESSION_TTL_MS, token)
+      .run()
+  }
+  return { id: row.id, email: row.email }
+}
+
+async function createSession(db: D1Database, userId: string): Promise<string> {
+  const token = randomHex(32)
+  await db
+    .prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)')
+    .bind(token, userId, Date.now() + SESSION_TTL_MS)
+    .run()
+  return token
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+async function readJsonBody<T>(request: Request): Promise<T> {
+  try {
+    return (await request.json()) as T
+  } catch {
+    const err = new Error('Expected a JSON body.') as Error & { status: number; code: string }
+    err.status = 400
+    err.code = 'BAD_REQUEST'
+    throw err
+  }
+}
+
+function bad(message: string, status = 400, code = 'BAD_REQUEST'): Error {
+  const err = new Error(message) as Error & { status: number; code: string }
+  err.status = status
+  err.code = code
+  return err
+}
+
+async function handleRegister(request: Request, db: D1Database): Promise<Response> {
+  const body = await readJsonBody<{ email?: unknown; password?: unknown }>(request)
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+  const password = typeof body.password === 'string' ? body.password : ''
+  if (!EMAIL_RE.test(email)) throw bad('Enter a valid email address.')
+  if (password.length < 8) throw bad('Use a password of at least 8 characters.')
+  if (password.length > 200) throw bad('That password is too long.')
+
+  const existing = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
+  if (existing) throw bad('An account with that email already exists. Sign in instead.', 409, 'EXISTS')
+
+  const id = randomHex(16)
+  const salt = randomHex(16)
+  const hash = await hashPassword(password, salt)
+  await db
+    .prepare('INSERT INTO users (id, email, pw_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(id, email, hash, salt, Date.now())
+    .run()
+
+  const token = await createSession(db, id)
+  return json({ token, user: { id, email } })
+}
+
+async function handleLogin(request: Request, db: D1Database): Promise<Response> {
+  const body = await readJsonBody<{ email?: unknown; password?: unknown }>(request)
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+  const password = typeof body.password === 'string' ? body.password : ''
+  if (!email || !password) throw bad('Enter your email and password.')
+
+  const row = await db
+    .prepare('SELECT id, email, pw_hash, salt FROM users WHERE email = ?')
+    .bind(email)
+    .first<{ id: string; email: string; pw_hash: string; salt: string }>()
+  // Same message either way, so the response can't be used to enumerate accounts.
+  if (!row) throw bad('That email and password do not match an account.', 401, 'INVALID_LOGIN')
+  const hash = await hashPassword(password, row.salt)
+  if (!safeEqual(hash, row.pw_hash)) {
+    throw bad('That email and password do not match an account.', 401, 'INVALID_LOGIN')
+  }
+
+  const token = await createSession(db, row.id)
+  return json({ token, user: { id: row.id, email: row.email } })
+}
+
+/** Meals are stored without their photo: base64 images would blow the row limit. */
+function slimMeal(meal: unknown): Record<string, unknown> | null {
+  if (!meal || typeof meal !== 'object') return null
+  const m = meal as Record<string, unknown>
+  if (typeof m.id !== 'string' || !m.id) return null
+  const { photo: _photo, ...rest } = m
+  return rest
+}
+
+const parseStored = (raw: unknown): unknown => {
+  if (typeof raw !== 'string') return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+async function handleSyncGet(env: Env, user: AccountUser): Promise<Response> {
+  const db = env.DB as D1Database
+  const [profileRow, settingsRow, mealRows, foodRows] = await Promise.all([
+    db.prepare('SELECT data FROM user_state WHERE user_id = ? AND key = ?').bind(user.id, 'profile').first<{ data: string }>(),
+    db.prepare('SELECT data FROM user_state WHERE user_id = ? AND key = ?').bind(user.id, 'settings').first<{ data: string }>(),
+    db.prepare('SELECT data FROM meals WHERE user_id = ?').bind(user.id).all<{ data: string }>(),
+    db.prepare('SELECT data FROM foods WHERE user_id = ?').bind(user.id).all<{ data: string }>(),
+  ])
+  return json({
+    profile: profileRow ? parseStored(profileRow.data) : null,
+    settings: settingsRow ? parseStored(settingsRow.data) : null,
+    meals: (mealRows.results ?? []).map((r) => parseStored(r.data)).filter(Boolean),
+    foods: (foodRows.results ?? []).map((r) => parseStored(r.data)).filter(Boolean),
+    serverTime: Date.now(),
+  })
+}
+
+/** Full-state replace. Used on first sign-in and when merging devices. */
+async function handleSyncPut(request: Request, env: Env, user: AccountUser): Promise<Response> {
+  const db = env.DB as D1Database
+  const body = await readJsonBody<{
+    profile?: unknown
+    settings?: unknown
+    meals?: unknown
+    foods?: unknown
+  }>(request)
+  const now = Date.now()
+  const meals = Array.isArray(body.meals) ? body.meals.map(slimMeal).filter(Boolean) : []
+  const foods = Array.isArray(body.foods) ? body.foods : []
+
+  const statements: D1Stmt[] = [
+    db.prepare('DELETE FROM meals WHERE user_id = ?').bind(user.id),
+    db.prepare('DELETE FROM foods WHERE user_id = ?').bind(user.id),
+    db.prepare('DELETE FROM user_state WHERE user_id = ?').bind(user.id),
+  ]
+  if (body.profile) {
+    statements.push(
+      db
+        .prepare('INSERT INTO user_state (user_id, key, data, updated_at) VALUES (?, ?, ?, ?)')
+        .bind(user.id, 'profile', JSON.stringify(body.profile), now),
+    )
+  }
+  if (body.settings) {
+    statements.push(
+      db
+        .prepare('INSERT INTO user_state (user_id, key, data, updated_at) VALUES (?, ?, ?, ?)')
+        .bind(user.id, 'settings', JSON.stringify(body.settings), now),
+    )
+  }
+  for (const m of meals) {
+    const meal = m as Record<string, unknown>
+    statements.push(
+      db
+        .prepare('INSERT INTO meals (user_id, id, data, updated_at) VALUES (?, ?, ?, ?)')
+        .bind(user.id, meal.id, JSON.stringify(meal), now),
+    )
+  }
+  for (const f of foods) {
+    const food = f as Record<string, unknown>
+    if (typeof food.id !== 'string' || !food.id) continue
+    statements.push(
+      db
+        .prepare('INSERT INTO foods (user_id, id, data, updated_at) VALUES (?, ?, ?, ?)')
+        .bind(user.id, food.id, JSON.stringify(food), now),
+    )
+  }
+  await db.batch(statements)
+  return json({ ok: true, meals: meals.length, foods: foods.length })
+}
+
+async function handleMealUpsert(request: Request, env: Env, user: AccountUser): Promise<Response> {
+  const db = env.DB as D1Database
+  const body = await readJsonBody<{ meal?: unknown }>(request)
+  const meal = slimMeal(body.meal)
+  if (!meal) throw bad('A meal with an id is required.')
+  await db
+    .prepare(
+      `INSERT INTO meals (user_id, id, data, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+    )
+    .bind(user.id, meal.id, JSON.stringify(meal), Date.now())
+    .run()
+  return json({ ok: true })
+}
+
+async function handleMealDelete(request: Request, env: Env, user: AccountUser): Promise<Response> {
+  const id = new URL(request.url).searchParams.get('id') ?? ''
+  if (!id) throw bad('A meal id is required.')
+  await (env.DB as D1Database)
+    .prepare('DELETE FROM meals WHERE user_id = ? AND id = ?')
+    .bind(user.id, id)
+    .run()
+  return json({ ok: true })
+}
+
+async function handleFoodUpsert(request: Request, env: Env, user: AccountUser): Promise<Response> {
+  const db = env.DB as D1Database
+  const body = await readJsonBody<{ food?: unknown }>(request)
+  const food = body.food as Record<string, unknown> | null
+  if (!food || typeof food.id !== 'string' || !food.id) throw bad('A food with an id is required.')
+  await db
+    .prepare(
+      `INSERT INTO foods (user_id, id, data, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (user_id, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+    )
+    .bind(user.id, food.id, JSON.stringify(food), Date.now())
+    .run()
+  return json({ ok: true })
+}
+
+async function handleFoodDelete(request: Request, env: Env, user: AccountUser): Promise<Response> {
+  const id = new URL(request.url).searchParams.get('id') ?? ''
+  if (!id) throw bad('A food id is required.')
+  await (env.DB as D1Database)
+    .prepare('DELETE FROM foods WHERE user_id = ? AND id = ?')
+    .bind(user.id, id)
+    .run()
+  return json({ ok: true })
+}
+
+async function handleStatePut(
+  request: Request,
+  env: Env,
+  user: AccountUser,
+  key: 'profile' | 'settings',
+  field: 'profile' | 'settings',
+): Promise<Response> {
+  const db = env.DB as D1Database
+  const body = await readJsonBody<Record<string, unknown>>(request)
+  const value = body[field]
+  if (value === undefined) throw bad(`A ${field} value is required.`)
+  if (value === null) {
+    await db.prepare('DELETE FROM user_state WHERE user_id = ? AND key = ?').bind(user.id, key).run()
+    return json({ ok: true })
+  }
+  await db
+    .prepare(
+      `INSERT INTO user_state (user_id, key, data, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (user_id, key) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+    )
+    .bind(user.id, key, JSON.stringify(value), Date.now())
+    .run()
+  return json({ ok: true })
+}
+
+/** Resolves the signed-in account, or returns the 401 response to send. */
+async function requireUser(request: Request, env: Env): Promise<AccountUser | Response> {
+  if (!env.DB) {
+    return json(errorBody('Accounts are not configured on this deployment.', 'NO_DB'), 503)
+  }
+  await ensureSchema(env.DB)
+  const user = await currentUser(request, env.DB)
+  if (!user) return json(errorBody('Please sign in again.', 'UNAUTHORIZED'), 401)
+  return user
+}
+
+async function handleApi(request: Request, env: Env, path: string): Promise<Response> {
+  if (path === '/api/health') {
+    return json({
+      ok: true,
+      hasKey: Boolean(env.OPENROUTER_API_KEY || env.GROQ_API_KEY),
+      hasDb: Boolean(env.DB),
+      model: env.AI_MODEL || PRIMARY_MODEL,
+      fallback: env.AI_FALLBACK_MODEL || FALLBACK_MODEL,
+    })
+  }
+
+  if (path === '/api/auth/register' && request.method === 'POST') {
+    if (!env.DB) return json(errorBody('Accounts are not configured.', 'NO_DB'), 503)
+    await ensureSchema(env.DB)
+    return handleRegister(request, env.DB)
+  }
+  if (path === '/api/auth/login' && request.method === 'POST') {
+    if (!env.DB) return json(errorBody('Accounts are not configured.', 'NO_DB'), 503)
+    await ensureSchema(env.DB)
+    return handleLogin(request, env.DB)
+  }
+  if (path === '/api/auth/me' && request.method === 'GET') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return json({ user })
+  }
+  if (path === '/api/auth/logout' && request.method === 'POST') {
+    if (!env.DB) return json(errorBody('Accounts are not configured.', 'NO_DB'), 503)
+    const token = bearer(request)
+    if (token) {
+      await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run()
+    }
+    return json({ ok: true })
+  }
+
+  if (path === '/api/sync' && request.method === 'GET') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleSyncGet(env, user)
+  }
+  if (path === '/api/sync' && request.method === 'PUT') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleSyncPut(request, env, user)
+  }
+  if (path === '/api/sync/meal' && request.method === 'POST') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleMealUpsert(request, env, user)
+  }
+  if (path === '/api/sync/meal' && request.method === 'DELETE') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleMealDelete(request, env, user)
+  }
+  if (path === '/api/sync/food' && request.method === 'POST') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleFoodUpsert(request, env, user)
+  }
+  if (path === '/api/sync/food' && request.method === 'DELETE') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleFoodDelete(request, env, user)
+  }
+  if (path === '/api/sync/profile' && request.method === 'PUT') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleStatePut(request, env, user, 'profile', 'profile')
+  }
+  if (path === '/api/sync/settings' && request.method === 'PUT') {
+    const user = await requireUser(request, env)
+    if (user instanceof Response) return user
+    return handleStatePut(request, env, user, 'settings', 'settings')
+  }
+
+  if (path === '/api/analyze/meal' && request.method === 'POST') {
+    return await handleMeal(request, env)
+  }
+  if (path === '/api/analyze/label' && request.method === 'POST') {
+    return await handleLabel(request, env)
+  }
+  if (path === '/api/analyze/ingredient' && request.method === 'POST') {
+    return await handleIngredient(request, env)
+  }
+  if (path === '/api/goals' && request.method === 'POST') {
+    return await handleGoals(request, env)
+  }
+  if (path === '/api/chat' && request.method === 'POST') {
+    return await handleChat(request, env)
+  }
+  return json(errorBody('Not found.', 'NOT_FOUND'), 404)
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -793,37 +1284,14 @@ export default {
     if (path.startsWith('/api/')) {
       const headers: Record<string, string> = {
         'access-control-allow-origin': '*',
-        'access-control-allow-methods': 'GET, POST, OPTIONS',
-        'access-control-allow-headers': 'content-type',
+        'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'access-control-allow-headers': 'content-type, authorization',
         'access-control-max-age': '86400',
       }
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
 
       try {
-        if (path === '/api/health' && request.method === 'GET') {
-          return json({
-            ok: true,
-            hasKey: Boolean(env.OPENROUTER_API_KEY || env.GROQ_API_KEY),
-            model: env.AI_MODEL || PRIMARY_MODEL,
-            fallback: env.AI_FALLBACK_MODEL || FALLBACK_MODEL,
-          })
-        }
-        if (path === '/api/analyze/meal' && request.method === 'POST') {
-          return await handleMeal(request, env)
-        }
-        if (path === '/api/analyze/label' && request.method === 'POST') {
-          return await handleLabel(request, env)
-        }
-        if (path === '/api/analyze/ingredient' && request.method === 'POST') {
-          return await handleIngredient(request, env)
-        }
-        if (path === '/api/goals' && request.method === 'POST') {
-          return await handleGoals(request, env)
-        }
-        if (path === '/api/chat' && request.method === 'POST') {
-          return await handleChat(request, env)
-        }
-        return json(errorBody('Not found.', 'NOT_FOUND'), 404)
+        return await handleApi(request, env, path)
       } catch (err) {
         const e = err as Error & { status?: number; code?: string }
         const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 500

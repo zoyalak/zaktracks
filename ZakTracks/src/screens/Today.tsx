@@ -8,9 +8,8 @@ import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '..
 import MealSheet from '../components/MealSheet'
 import { Disclosure, Field, MacroBar, Notice, ProgressRing, Sheet } from '../components/ui'
 
-export default function Today() {
+export default function Today({ date, onDate }: { date: string; onDate: (key: string) => void }) {
   const { profile, meals, settings, upsertMeal, removeMeal, logWeight } = useApp()
-  const [date, setDate] = useState(todayKey())
   const [editing, setEditing] = useState<{ meal: MealEntry; isNew: boolean } | null>(null)
   const [weighOpen, setWeighOpen] = useState(false)
   const [weightInput, setWeightInput] = useState('')
@@ -50,7 +49,7 @@ export default function Today() {
           <h1>{formatDayLabel(date, { day: 'numeric', month: 'long' })}</h1>
         </div>
         <div className="row" style={{ gap: 7 }}>
-          <button className="icon-btn" aria-label="Previous day" onClick={() => setDate((d) => shiftKey(d, -1))}>
+          <button className="icon-btn" aria-label="Previous day" onClick={() => onDate(shiftKey(date, -1))}>
             ‹
           </button>
           <button
@@ -58,7 +57,7 @@ export default function Today() {
             aria-label="Next day"
             disabled={date >= todayKey()}
             style={{ opacity: date >= todayKey() ? 0.35 : 1 }}
-            onClick={() => setDate((d) => shiftKey(d, 1))}
+            onClick={() => onDate(shiftKey(date, 1))}
           >
             ›
           </button>

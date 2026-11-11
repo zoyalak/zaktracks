@@ -1,8 +1,9 @@
 import { Fragment, useCallback, useRef, useState } from 'react'
 import { useApp } from './state/AppContext'
 import { todayKey } from './lib/date'
-import { targetsFor, totalsFor } from './lib/selectors'
+import { targetsFor } from './lib/selectors'
 import AddMealSheet from './components/AddMealSheet'
+import Auth from './components/Auth'
 import Onboarding from './components/Onboarding'
 import Today from './screens/Today'
 import Week from './screens/Week'
@@ -21,10 +22,12 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ]
 
 export default function App() {
-  const { ready, profile, meals } = useApp()
+  const { ready, profile, user } = useApp()
   const [tab, setTab] = useState<Tab>('today')
   const [pendingTab, setPendingTab] = useState<Tab | null>(null)
   const [adding, setAdding] = useState(false)
+  /** The day the Track screen is showing — also where a new meal lands. */
+  const [day, setDay] = useState(todayKey())
 
   // The You tab registers a guard here so switching tabs mid-edit can ask
   // "save changes?" instead of silently dropping the draft.
@@ -43,6 +46,9 @@ export default function App() {
       </div>
     )
   }
+
+  // Accounts keep each person's logs separate on a shared device.
+  if (!user) return <Auth />
 
   if (!profile) return <Onboarding />
 
@@ -73,7 +79,6 @@ export default function App() {
   }
 
   const targets = targetsFor(profile)
-  const remaining = targets.goalKcal - totalsFor(meals, todayKey()).kcal
 
   return (
     <>
@@ -93,7 +98,7 @@ export default function App() {
             👤
           </button>
         </div>
-        {tab === 'today' && <Today />}
+        {tab === 'today' && <Today date={day} onDate={setDay} />}
         {tab === 'week' && <Week />}
         {tab === 'chat' && <Chat />}
         {tab === 'foods' && <Foods />}
@@ -126,9 +131,12 @@ export default function App() {
       <AddMealSheet
         open={adding}
         onClose={() => setAdding(false)}
-        date={todayKey()}
+        // From the Track screen the sheet opens on the day you're viewing;
+        // elsewhere it starts on today. Saving jumps Track to the day that
+        // was logged, so the meal you just added is what you see.
+        date={tab === 'today' ? day : todayKey()}
         goalKcal={targets.goalKcal}
-        remaining={remaining}
+        onSaved={(meal) => setDay(meal.date)}
       />
       {pendingTab !== null && (
         <Sheet

@@ -6,7 +6,8 @@ import { estimateFromText, itemsToName } from '../lib/estimate'
 import { searchFoods } from '../lib/foods'
 import type { Food, LogItem, MealEntry } from '../lib/types'
 import { emptyMacro, roundMacro, scaleExtras } from '../lib/types'
-import { nowTime, todayKey } from '../lib/date'
+import { formatDayLabel, nowTime, shiftKey, todayKey } from '../lib/date'
+import { totalsFor } from '../lib/selectors'
 import MealSheet, { draftMeal } from './MealSheet'
 import { Choice, Field, Loading, Notice, Sheet } from './ui'
 
@@ -28,15 +29,16 @@ export default function AddMealSheet({
   onClose,
   date = todayKey(),
   goalKcal,
-  remaining,
+  onSaved,
 }: {
   open: boolean
   onClose: () => void
+  /** Day the sheet starts on — today, or the day the Track screen is showing. */
   date?: string
   goalKcal: number
-  remaining: number
+  onSaved?: (meal: MealEntry) => void
 }) {
-  const { foods, profile, upsertMeal } = useApp()
+  const { foods, profile, meals, upsertMeal } = useApp()
   const [mode, setMode] = useState<Mode>('menu')
   const [busy, setBusy] = useState(false)
   const [busyLabel, setBusyLabel] = useState('Calculating macros…')
@@ -49,6 +51,12 @@ export default function AddMealSheet({
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<{ food: Food; grams: string } | null>(null)
   const [cart, setCart] = useState<LogItem[]>([])
+  /**
+   * The day and time the meal actually happened. Null means "whatever the
+   * sheet was opened for", so every fresh open starts on the right day.
+   */
+  const [dayPick, setDayPick] = useState<string | null>(null)
+  const [timePick, setTimePick] = useState<string | null>(null)
   const photoInput = useRef<HTMLInputElement>(null)
   const libraryInput = useRef<HTMLInputElement>(null)
 
@@ -64,6 +72,8 @@ export default function AddMealSheet({
       setPicked(null)
       setCart([])
       setBusy(false)
+      setDayPick(null)
+      setTimePick(null)
       return
     }
     apiHealth().then(setHealth)
@@ -71,6 +81,12 @@ export default function AddMealSheet({
 
   const results = useMemo(() => searchFoods(query, foods), [query, foods])
   const hasKey = Boolean(health?.hasKey)
+  const day = dayPick ?? date
+  const time = timePick ?? nowTime()
+  const yesterdayKey = shiftKey(todayKey(), -1)
+  const dayLabel = formatDayLabel(day, { weekday: 'short', day: 'numeric', month: 'short' })
+  /** Calories left on the day being logged, not on today. */
+  const remaining = goalKcal - totalsFor(meals, day).kcal
 
   const fail = (err: unknown) => {
     const message =
@@ -109,8 +125,8 @@ export default function AddMealSheet({
       const analysis = await analyzeMeal(photoData, trimmed || undefined)
       setPending(
         draftMeal({
-          date,
-          time: nowTime(),
+          date: day,
+          time,
           name: mealName.trim() || analysis.mealName,
           note: composeNote(trimmed, analysis.warnings),
           photo: photoData,
@@ -138,8 +154,8 @@ export default function AddMealSheet({
           const analysis = await analyzeMeal('', trimmed)
           setPending(
             draftMeal({
-              date,
-              time: nowTime(),
+              date: day,
+              time,
               name: mealName.trim() || analysis.mealName,
               note: composeNote(trimmed, analysis.warnings),
               items: analysisToItems(analysis.items),
@@ -155,8 +171,8 @@ export default function AddMealSheet({
       const { items, unmatched } = estimateFromText(trimmed, foods)
       setPending(
         draftMeal({
-          date,
-          time: nowTime(),
+          date: day,
+          time,
           name: mealName.trim() || itemsToName(items),
           note: trimmed,
           items,
@@ -202,12 +218,13 @@ export default function AddMealSheet({
   const saveCart = () => {
     if (!cart.length) return
     setPending(
-      draftMeal({ date, time: nowTime(), name: itemsToName(cart), note: '', items: cart, source: 'food' }),
+      draftMeal({ date: day, time, name: itemsToName(cart), note: '', items: cart, source: 'food' }),
     )
   }
 
   const saveMeal = async (meal: MealEntry) => {
     await upsertMeal(meal)
+    onSaved?.(meal)
     onClose()
   }
 
@@ -238,7 +255,15 @@ export default function AddMealSheet({
       open={open}
       onClose={onClose}
       title={mode === 'menu' ? 'Add a meal' : mode === 'photo' ? 'Photo of your meal' : mode === 'describe' ? 'Describe your meal' : 'Pick your foods'}
-      sub={remaining >= 0 ? `${remaining.toLocaleString()} kcal left in today's goal` : `Over today's goal by ${Math.abs(remaining).toLocaleString()} kcal`}
+      sub={
+        day === todayKey()
+          ? remaining >= 0
+            ? `${remaining.toLocaleString()} kcal left in today's goal`
+            : `Over today's goal by ${Math.abs(remaining).toLocaleString()} kcal`
+          : remaining >= 0
+            ? `${remaining.toLocaleString()} kcal left on ${dayLabel}`
+            : `Over the ${dayLabel} goal by ${Math.abs(remaining).toLocaleString()} kcal`
+      }
     >
       <input
         ref={photoInput}
@@ -265,6 +290,44 @@ export default function AddMealSheet({
       />
 
       {error && <Notice type={hasKey || error.length < 90 ? 'error' : 'warn'}>{error}</Notice>}
+
+      {/* Which day this meal belongs to — a meal remembered after midnight
+          can still land on the day it was eaten. */}
+      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+        <input
+          className="input grow"
+          type="date"
+          aria-label="Day this meal was eaten"
+          max={todayKey()}
+          value={day}
+          onChange={(e) => e.target.value && setDayPick(e.target.value)}
+        />
+        <input
+          className="input"
+          type="time"
+          aria-label="Time this meal was eaten"
+          value={time}
+          onChange={(e) => e.target.value && setTimePick(e.target.value)}
+          style={{ width: 116 }}
+        />
+      </div>
+      <div className="row" style={{ gap: 8, marginBottom: 14 }}>
+        <button
+          className={`btn small${day === todayKey() ? ' primary' : ' ghost'}`}
+          onClick={() => setDayPick(todayKey())}
+        >
+          Today
+        </button>
+        <button
+          className={`btn small${day === yesterdayKey ? ' primary' : ' ghost'}`}
+          onClick={() => setDayPick(yesterdayKey)}
+        >
+          Yesterday
+        </button>
+        <span className="tiny grow" style={{ textAlign: 'right' }}>
+          {dayLabel}
+        </span>
+      </div>
 
       {busy ? (
         <Loading label={busyLabel} />

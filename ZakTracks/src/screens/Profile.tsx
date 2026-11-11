@@ -29,7 +29,8 @@ const NUM_MSG: Record<NumKey, string> = {
 }
 
 export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null) => void }) {
-  const { profile, meals, foods, settings, saveProfile, importData, resetAll, storageMode } = useApp()
+  const { profile, meals, foods, settings, saveProfile, importData, resetAll, storageMode, user, signOut } =
+    useApp()
   const [draft, setDraft] = useState<ProfileType | null>(profile)
   const [saved, setSaved] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
@@ -515,15 +516,31 @@ export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null
         )}
       </div>
 
-      <div className="section-label">Your data</div>
+      <div className="section-label">Your account</div>
       <div className="card">
         <div className="kv">
-          <span className="k">Stored on</span>
+          <span className="k">Signed in as</span>
+          <span className="v">{user?.email ?? '—'}</span>
+        </div>
+        <div className="kv">
+          <span className="k">Local cache</span>
           <span className="v">{storageMode === 'indexeddb' ? 'This device (IndexedDB)' : 'This browser (localStorage)'}</span>
         </div>
         <p className="tiny" style={{ marginBottom: 12 }}>
-          Nothing leaves your phone except photos you ask us to analyze. Export regularly — clearing
-          browser data removes your log.
+          Your logs are saved to your account and synced to every device you sign in on. Signing out
+          removes the copy stored on this phone.
+        </p>
+        <div className="btn-row">
+          <button className="btn" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </div>
+      </div>
+
+      <div className="section-label">Export &amp; import</div>
+      <div className="card">
+        <p className="tiny" style={{ marginBottom: 12 }}>
+          Export a copy of everything to a file, or load a previous export back in.
         </p>
         <div className="btn-row">
           <button className="btn" onClick={exportData}>
