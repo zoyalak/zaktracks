@@ -1032,6 +1032,11 @@ input[type='range']:focus-visible {
   font-size: 14px;
 }
 
+/* Meal rows keep their AI-estimate button beside remove. */
+.edit-row.with-ai {
+  grid-template-columns: minmax(0, 1fr) 64px 34px 34px;
+}
+
 .edit-macros {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

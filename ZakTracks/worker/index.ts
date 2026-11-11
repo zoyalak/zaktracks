@@ -176,16 +176,17 @@ const CHAT_SCHEMA = {
   propertyOrdering: ['reply'],
 }
 
-// One ingredient of a recipe: its nutrition for the amount being used.
+// One ingredient (or extra bit of a meal): its nutrition for the amount used.
 const INGREDIENT_SCHEMA = {
   type: 'OBJECT',
   properties: {
     name: { type: 'STRING' },
+    grams: { type: 'NUMBER' },
     ...MACRO_PROPS,
     extras: EXTRA_OBJECT,
   },
-  required: ['name', 'kcal', 'protein', 'carbs', 'fat', 'extras'],
-  propertyOrdering: ['name', 'kcal', 'protein', 'carbs', 'fat', 'extras'],
+  required: ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat', 'extras'],
+  propertyOrdering: ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat', 'extras'],
 }
 
 const CHAT_PROMPT = `You are ZakTracks, a friendly nutrition coach living inside the user's calorie-tracking app.
@@ -202,14 +203,15 @@ Rules:
 
 const INGREDIENT_PROMPT = `You are a precise nutrition analyst.
 
-You are given ONE ingredient and the amount of it going into a recipe (e.g. "oats, 60 g"). Return the nutrition for exactly that amount.
+You are given ONE ingredient — a recipe ingredient or a bit of a meal — and usually the amount of it going in (e.g. "oats, 60 g"). Return the nutrition for exactly that amount, or for one typical serving when no amount is given.
 
 Rules:
 - kcal, protein, carbs and fat are for THE AMOUNT GIVEN, never per 100 g. protein, carbs and fat are grams.
 - The amount is edible weight in grams (millilitres count as grams for liquids).
 - Assume a plain, typical version of the ingredient unless a brand or preparation is named (whole milk, plain yoghurt, rolled oats).
 - "name" is the ingredient cleaned up for display, e.g. "whole milk".
-- For every item also estimate "fiber", "sugar" and "saturatedFat" in grams, and "sodium", "potassium", "calcium" and "iron" in milligrams, for the same amount, using typical nutrition-table values. Always return real estimates — never null, never 0 unless the food genuinely contains none of that nutrient.`
+- For every item also estimate "fiber", "sugar" and "saturatedFat" in grams, and "sodium", "potassium", "calcium" and "iron" in milligrams, for the same amount, using typical nutrition-table values. Always return real estimates — never null, never 0 unless the food genuinely contains none of that nutrient.
+- "grams" is the weight your numbers are for. Return the amount you were given, or, when no amount was given, the typical serving you assumed ("some crushed nuts" is a 30 g handful).`
 
 const MEAL_PROMPT = `You are a precise nutrition analyst looking at a photo of someone's meal.
 
@@ -658,23 +660,24 @@ async function handleIngredient(request: Request, env: Env): Promise<Response> {
     throw err
   }
   const name = str(body.name)
-  const grams = num(body.grams)
+  const amount = num(body.grams)
   if (!name) {
     const err = new Error('An ingredient name is required.') as Error & { status: number; code: string }
     err.status = 400
     err.code = 'BAD_REQUEST'
     throw err
   }
-  if (!(grams > 0)) {
-    const err = new Error('The amount in grams is required.') as Error & { status: number; code: string }
-    err.status = 400
-    err.code = 'BAD_REQUEST'
-    throw err
-  }
+  const given = amount > 0 ? amount : null
 
   const { text, model } = await callModel(
     env,
-    [{ text: `Ingredient: ${name}\nAmount: ${grams} g` }],
+    [
+      {
+        text: given
+          ? `Ingredient: ${name}\nAmount: ${given} g`
+          : `Ingredient: ${name}\nAmount: not given — assume one typical serving and report its weight in "grams".`,
+      },
+    ],
     INGREDIENT_SCHEMA,
     INGREDIENT_PROMPT,
   )
@@ -686,9 +689,10 @@ async function handleIngredient(request: Request, env: Env): Promise<Response> {
   }
   const o = raw as Record<string, unknown>
 
+  const assumed = num(o.grams)
   return json({
     name: str(o.name, name) || name,
-    grams,
+    grams: given ?? (assumed > 0 ? assumed : 0),
     kcal: num(o.kcal),
     protein: num(o.protein),
     carbs: num(o.carbs),

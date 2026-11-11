@@ -1,7 +1,16 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { LogItem, MealEntry } from '../lib/types'
-import { EXTRA_KEYS, EXTRA_META, emptyMacro, itemsToExtras, roundMacro, scaleExtras } from '../lib/types'
+import {
+  EXTRA_KEYS,
+  EXTRA_META,
+  emptyMacro,
+  hasExtras,
+  itemsToExtras,
+  roundMacro,
+  scaleExtras,
+} from '../lib/types'
 import { formatDayLabel, makeId, shiftKey, todayKey } from '../lib/date'
+import { ApiError, estimateIngredient } from '../lib/api'
 import { Disclosure, Field, Notice, Sheet } from './ui'
 
 const emptyItem = (): LogItem => ({ name: '', grams: null, kcal: 0, protein: 0, carbs: 0, fat: 0 })
@@ -28,6 +37,18 @@ export default function MealSheet({
   const [note, setNote] = useState(meal.note)
   const [items, setItems] = useState<LogItem[]>(meal.items.length ? meal.items : [emptyItem()])
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** Rows currently waiting on an AI estimate, by index. */
+  const [estimating, setEstimating] = useState<Record<number, boolean>>({})
+  const [aiNote, setAiNote] = useState<{ type: 'warn' | 'info'; text: string } | null>(null)
+  /**
+   * The latest rows, readable after an await. Editing a meal means adding a
+   * piece you forgot ("some crushed nuts"), which the AI has to price — so a
+   * row typed into and left alone gets estimated automatically, and Save waits
+   * for any estimate still in flight instead of saving zeros.
+   */
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const inFlight = useRef<Set<Promise<void>>>(new Set())
   /**
    * Exactly what was typed in each macro field, kept per item so a field the
    * user backs all the way up stays empty instead of snapping back to 0.
@@ -125,8 +146,69 @@ export default function MealSheet({
       patch(index, { [key]: Number.isFinite(n) && n >= 0 ? n : 0 } as Partial<LogItem>)
     }
 
-  const save = () => {
-    const clean = items
+  /**
+   * Ask the AI what a row is worth. With a gram amount it prices that amount;
+   * without one it prices a typical serving and fills the grams in.
+   */
+  const estimateItem = (index: number): Promise<void> => {
+    const row = itemsRef.current[index]
+    const name = row?.name.trim() ?? ''
+    if (!row || !name) return Promise.resolve()
+    const grams = row.grams
+    setAiNote(null)
+    setEstimating((prev) => ({ ...prev, [index]: true }))
+
+    const run = estimateIngredient(name, grams)
+      .then((est) => {
+        const stillHere = itemsRef.current[index]
+        // The row may have been removed while the AI was thinking.
+        if (!stillHere || stillHere.name.trim() !== name || stillHere.grams !== grams) return
+        const assumed = est.grams > 0 ? est.grams : grams
+        const next: LogItem = {
+          ...stillHere,
+          name: est.name || stillHere.name,
+          grams: assumed ?? null,
+          kcal: est.kcal,
+          protein: est.protein,
+          carbs: est.carbs,
+          fat: est.fat,
+          extras: hasExtras(est.extras) ? est.extras : undefined,
+        }
+        setItems((prev) => prev.map((it, i) => (i === index ? next : it)))
+        // The numbers are fresh — drop any half-typed macro text.
+        setRaws((prev) => prev.map((r, i) => (i === index ? {} : r)))
+      })
+      .catch((err) => {
+        const detail = err instanceof ApiError ? err.message : 'Could not reach the AI.'
+        setAiNote({
+          type: 'warn',
+          text: `Couldn't estimate ${name.toLowerCase()} — ${detail} Type its numbers in instead.`,
+        })
+      })
+      .finally(() => {
+        inFlight.current.delete(run)
+        setEstimating((prev) => {
+          const next = { ...prev }
+          delete next[index]
+          return next
+        })
+      })
+    inFlight.current.add(run)
+    return run
+  }
+
+  /** Rows worth pricing automatically: named, empty, and not already running. */
+  const estimateIfBlank = (index: number) => {
+    const row = itemsRef.current[index]
+    if (!row || estimating[index]) return
+    if (!row.name.trim() || row.name.trim().length < 2) return
+    if (row.kcal || row.protein || row.carbs || row.fat) return
+    void estimateItem(index)
+  }
+
+  const save = async () => {
+    if (inFlight.current.size) await Promise.allSettled([...inFlight.current])
+    const clean = itemsRef.current
       .filter((i) => i.name.trim() || i.kcal > 0)
       .map((i) => ({ ...i, name: i.name.trim() || 'Food' }))
     onSave({
@@ -143,8 +225,13 @@ export default function MealSheet({
       open
       onClose={onClose}
       title={isNew ? 'Review this meal' : 'Edit meal'}
-      sub={isNew ? 'Check the numbers — anything the camera got wrong, fix it here.' : undefined}
+      sub={
+        isNew
+          ? 'Check the numbers — anything the camera got wrong, fix it here.'
+          : 'Add or change an item and the AI prices it for you.'
+      }
     >
+      {aiNote && <Notice type={aiNote.type}>{aiNote.text}</Notice>}
       <div className="row" style={{ gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
         {meal.photo && <img className="photo-preview" style={{ width: 92, height: 92, flex: '0 0 auto' }} src={meal.photo} alt="" />}
         <div className="grow">
@@ -165,17 +252,24 @@ export default function MealSheet({
 
       <div className="card-title" style={{ marginTop: 6 }}>
         <h2>Items</h2>
-        <span className="hint">kcal & macros per item</span>
+        <span className="hint">type a new food, then ✨</span>
       </div>
 
       {items.map((item, index) => (
         <div key={index} style={{ marginBottom: 12 }}>
-          <div className="edit-row">
+          <div className="edit-row with-ai">
             <input
               className="input"
               value={item.name}
               placeholder={index === 0 ? 'Grilled chicken' : 'Food'}
               onChange={(e) => patch(index, { name: e.target.value })}
+              onBlur={() => estimateIfBlank(index)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  e.currentTarget.blur()
+                }
+              }}
             />
             <input
               className="input"
@@ -188,6 +282,15 @@ export default function MealSheet({
             />
             <button
               className="icon-btn"
+              aria-label={`Estimate ${item.name || 'this item'} with AI`}
+              title="Estimate with AI"
+              disabled={estimating[index]}
+              onClick={() => void estimateItem(index)}
+            >
+              {estimating[index] ? <span className="spinner" /> : '✨'}
+            </button>
+            <button
+              className="icon-btn"
               aria-label="Remove item"
               onClick={() => {
                 setItems((prev) => prev.filter((_, i) => i !== index))
@@ -198,6 +301,11 @@ export default function MealSheet({
               ✕
             </button>
           </div>
+          {estimating[index] && (
+            <p className="tiny muted" style={{ marginTop: -4, marginBottom: 8 }}>
+              Estimating {item.name || 'this item'}…
+            </p>
+          )}
           <div className="edit-macros">
             <div>
               <label>kcal</label>

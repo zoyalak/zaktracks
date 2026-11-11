@@ -102,13 +102,16 @@ export interface IngredientEstimate {
   extras: ExtraMacros
 }
 
-/** Nutrition for one recipe ingredient at the amount being used. */
+/**
+ * Nutrition for one ingredient at the amount being used. Leave `grams` out to
+ * get one typical serving — the estimate reports the weight it assumed.
+ */
 export const estimateIngredient = (
   name: string,
-  grams: number,
+  grams?: number | null,
   signal?: AbortSignal,
 ): Promise<IngredientEstimate> =>
-  post<IngredientEstimate>('/api/analyze/ingredient', { name, grams }, signal)
+  post<IngredientEstimate>('/api/analyze/ingredient', { name, grams: grams ?? undefined }, signal)
 
 export interface ChatMessage {
   role: 'user' | 'assistant'
