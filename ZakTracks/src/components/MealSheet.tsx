@@ -12,7 +12,7 @@ import {
 import type { Food } from '../lib/types'
 import { formatDayLabel, makeId, shiftKey, todayKey } from '../lib/date'
 import { ApiError, estimateIngredient } from '../lib/api'
-import { searchFoods } from '../lib/foods'
+import { savedFoodRows, searchFoods } from '../lib/foods'
 import { useApp } from '../state/AppContext'
 import { Disclosure, Field, Notice, Sheet } from './ui'
 
@@ -47,6 +47,8 @@ export default function MealSheet({
   const { foods } = useApp()
   const [pickOpen, setPickOpen] = useState(false)
   const [pickQuery, setPickQuery] = useState('')
+  /** Last food picked, shown under the search box while the picker stays open. */
+  const [lastPicked, setLastPicked] = useState('')
   /**
    * The latest rows, readable after an await. Editing a meal means adding a
    * piece you forgot ("some crushed nuts"), which the AI has to price — so a
@@ -215,40 +217,18 @@ export default function MealSheet({
   }
 
   /**
-   * A saved food or recipe as meal rows. A label saved per serving counts as
-   * one serving; one saved per 100 g starts at 100 g, which the grams field can
-   * rescale. Recipes contribute their ingredients.
+   * Drop a saved food into the meal and leave the picker open, so several
+   * ingredients of one sandwich can be added without reopening it each time.
+   * Blank rows are cleared first so the picked food lands where it can be read.
    */
-  const foodToItems = (food: Food): LogItem[] => {
-    if (food.source === 'recipe' && food.ingredients?.length) {
-      return food.ingredients.map((i) => ({ ...i }))
-    }
-    const byServing = food.per === 'serving'
-    const factor = byServing ? 1 : 1
-    return [
-      {
-        name: food.name,
-        grams: byServing ? (food.gramsPerServing ?? null) : 100,
-        kcal: Math.round(food.kcal * factor),
-        protein: Math.round(food.protein * factor * 10) / 10,
-        carbs: Math.round(food.carbs * factor * 10) / 10,
-        fat: Math.round(food.fat * factor * 10) / 10,
-        extras: scaleExtras(food.extras, factor),
-        foodId: food.id,
-      },
-    ]
-  }
-
   const addFood = (food: Food) => {
-    const fresh = foodToItems(food)
-    // Blank rows are dropped so the picked food lands where it can be read.
+    const fresh = savedFoodRows(food)
     const keep = itemsRef.current
       .map((it, i) => (it.name.trim() || it.kcal > 0 ? i : -1))
       .filter((i) => i >= 0)
     setItems((prev) => [...keep.map((i) => prev[i]), ...fresh])
     setRaws((prev) => [...keep.map((i) => prev[i] ?? {}), ...fresh.map(() => ({}))])
-    setPickOpen(false)
-    setPickQuery('')
+    setLastPicked(food.name)
   }
 
   const save = async () => {
@@ -404,6 +384,11 @@ export default function MealSheet({
               placeholder="Search your foods and the built-in table…"
             />
           </div>
+          {lastPicked && (
+            <p className="tiny muted" style={{ margin: '0 0 6px' }}>
+              Added {lastPicked} — keep picking, then close this to edit the meal.
+            </p>
+          )}
           <div style={{ maxHeight: '34vh', overflowY: 'auto' }}>
             {pickResults.map((f) => (
               <button key={f.id} className="list-item" onClick={() => addFood(f)}>

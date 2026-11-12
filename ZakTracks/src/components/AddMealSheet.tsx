@@ -3,7 +3,7 @@ import { useApp } from '../state/AppContext'
 import { ApiError, analyzeMeal, apiHealth, type AnalyzedItem, type ApiHealth } from '../lib/api'
 import { fileToDataUrl } from '../lib/photo'
 import { estimateFromText, itemsToName } from '../lib/estimate'
-import { searchFoods } from '../lib/foods'
+import { matchSavedFood, savedFoodRows, searchFoods } from '../lib/foods'
 import type { Food, LogItem, MealEntry } from '../lib/types'
 import { emptyMacro, roundMacro, scaleExtras } from '../lib/types'
 import { formatDayLabel, nowTime, shiftKey, todayKey } from '../lib/date'
@@ -11,16 +11,27 @@ import { totalsFor } from '../lib/selectors'
 import MealSheet, { draftMeal } from './MealSheet'
 import { Choice, Field, Loading, Notice, Sheet } from './ui'
 
-const analysisToItems = (items: AnalyzedItem[]): LogItem[] =>
-  items.map((i) => ({
-    name: i.name,
-    grams: i.grams,
-    kcal: i.kcal,
-    protein: i.protein,
-    carbs: i.carbs,
-    fat: i.fat,
-    extras: i.extras,
-  }))
+/**
+ * The AI's items, with the user's own foods taking precedence: when an item is
+ * one of their saved labels ("2 slices of bread from my foods"), the saved
+ * numbers are used instead of the model's generic guess.
+ */
+const analysisToItems = (items: AnalyzedItem[], saved: Food[]): LogItem[] =>
+  items.flatMap((i) => {
+    const food = matchSavedFood(i.name, saved)
+    if (food) return savedFoodRows(food, i.grams)
+    return [
+      {
+        name: i.name,
+        grams: i.grams,
+        kcal: i.kcal,
+        protein: i.protein,
+        carbs: i.carbs,
+        fat: i.fat,
+        extras: i.extras,
+      },
+    ]
+  })
 
 type Mode = 'menu' | 'photo' | 'describe' | 'pick'
 
@@ -130,7 +141,7 @@ export default function AddMealSheet({
           name: mealName.trim() || analysis.mealName,
           note: composeNote(trimmed, analysis.warnings),
           photo: photoData,
-          items: analysisToItems(analysis.items),
+          items: analysisToItems(analysis.items, foods),
           source: 'photo',
         }),
       )
@@ -158,7 +169,7 @@ export default function AddMealSheet({
               time,
               name: mealName.trim() || analysis.mealName,
               note: composeNote(trimmed, analysis.warnings),
-              items: analysisToItems(analysis.items),
+              items: analysisToItems(analysis.items, foods),
               source: 'describe',
             }),
           )

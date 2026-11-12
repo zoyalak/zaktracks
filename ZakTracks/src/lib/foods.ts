@@ -1,4 +1,5 @@
-import type { Food } from './types'
+import type { Food, LogItem } from './types'
+import { itemsToGrams, scaleExtras, scaleItems } from './types'
 
 /**
  * Built-in food table. Values are per 100 g (or per serving when `per` is
@@ -175,6 +176,87 @@ export function searchFoods(query: string, custom: Food[] = [], builtin = BUILTI
     .sort((a, b) => b.s - a.s || a.f.name.localeCompare(b.f.name))
     .slice(0, 60)
     .map((x) => x.f)
+}
+
+/**
+ * A saved food as the rows it becomes in a meal. A recipe spreads into its
+ * ingredients (scaled to `grams` of the batch when one is given); everything
+ * else is one row — a serving if it was saved per serving, else `grams` of it.
+ */
+export function savedFoodRows(food: Food, grams?: number | null): LogItem[] {
+  if (food.source === 'recipe' && food.ingredients?.length) {
+    const batch = food.gramsPerServing || itemsToGrams(food.ingredients)
+    const factor = grams && grams > 0 && batch > 0 ? grams / batch : 1
+    return scaleItems(food.ingredients, factor)
+  }
+  const byServing = food.per === 'serving'
+  const portion = byServing ? 1 : grams && grams > 0 ? grams : 100
+  const factor = byServing ? 1 : portion / 100
+  return [
+    {
+      name: food.name,
+      grams: byServing ? (food.gramsPerServing ?? null) : portion,
+      kcal: Math.round(food.kcal * factor),
+      protein: Math.round(food.protein * factor * 10) / 10,
+      carbs: Math.round(food.carbs * factor * 10) / 10,
+      fat: Math.round(food.fat * factor * 10) / 10,
+      extras: scaleExtras(food.extras, factor),
+      foodId: food.id,
+    },
+  ]
+}
+
+/** Filler words the user types around a food name, ignored when matching. */
+const MATCH_STOP = new Set([
+  'the', 'and', 'with', 'from', 'my', 'our', 'food', 'foods', 'saved', 'some', 'of', 'in', 'on',
+  'a', 'an', 'plus', 'extra', 'for', 'this', 'that', 'it', 'its', 'added', 'label', 'custom',
+])
+
+const normName = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const nameWords = (s: string): string[] =>
+  normName(s)
+    .split(' ')
+    .filter((w) => w.length > 2 && !MATCH_STOP.has(w) && !/^\d+$/.test(w))
+
+/**
+ * The user's own food that best matches a food the AI named, so their saved
+ * label wins over the model's guess — "bread from my foods" should price the
+ * bread they scanned, not a generic loaf.
+ */
+export function matchSavedFood(name: string, saved: Food[]): Food | null {
+  const q = normName(name)
+  if (!q) return null
+  const qWords = nameWords(name)
+  let best: { food: Food; hits: number; extra: number } | null = null
+
+  for (const food of saved) {
+    if (food.source === 'builtin') continue
+    if (!(food.kcal || food.protein || food.carbs || food.fat)) continue
+    const f = normName(food.name)
+    if (!f) continue
+
+    const fWords = nameWords(food.name)
+    let hits = 0
+    if (f === q) hits = 100
+    else if (qWords.length && qWords.every((w) => fWords.includes(w))) hits = qWords.length
+    else if (fWords.length && fWords.every((w) => qWords.includes(w))) hits = fWords.length
+    else if (qWords.length && f.includes(qWords[0]) && fWords.some((w) => qWords.includes(w)))
+      hits = 0.5
+    if (!hits) continue
+
+    // Prefer the most words matched, then the closest-sized name.
+    const extra = Math.abs(fWords.length - qWords.length)
+    if (!best || hits > best.hits || (hits === best.hits && extra < best.extra)) {
+      best = { food, hits, extra }
+    }
+  }
+  return best?.food ?? null
 }
 
 export const foodsByCategory = (foods: Food[]): { category: string; items: Food[] }[] => {
