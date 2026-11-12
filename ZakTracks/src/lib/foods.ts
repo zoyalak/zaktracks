@@ -178,10 +178,25 @@ export function searchFoods(query: string, custom: Food[] = [], builtin = BUILTI
     .map((x) => x.f)
 }
 
+const t1 = (n: number): number => Math.round(n * 10) / 10
+
+const scaledItem = (food: Food, grams: number | null, factor: number): LogItem => ({
+  name: food.name,
+  grams,
+  kcal: Math.round(food.kcal * factor),
+  protein: t1(food.protein * factor),
+  carbs: t1(food.carbs * factor),
+  fat: t1(food.fat * factor),
+  extras: scaleExtras(food.extras, factor),
+  foodId: food.id,
+})
+
 /**
  * A saved food as the rows it becomes in a meal. A recipe spreads into its
- * ingredients (scaled to `grams` of the batch when one is given); everything
- * else is one row — a serving if it was saved per serving, else `grams` of it.
+ * ingredients (scaled to `grams` of the batch when one is given). A food saved
+ * per serving is counted in servings, so the AI's 180 g for a two-slice label
+ * is two servings, not one — and one serving when no weight is known. A food
+ * saved per 100 g is priced at the weight asked for.
  */
 export function savedFoodRows(food: Food, grams?: number | null): LogItem[] {
   if (food.source === 'recipe' && food.ingredients?.length) {
@@ -189,21 +204,16 @@ export function savedFoodRows(food: Food, grams?: number | null): LogItem[] {
     const factor = grams && grams > 0 && batch > 0 ? grams / batch : 1
     return scaleItems(food.ingredients, factor)
   }
-  const byServing = food.per === 'serving'
-  const portion = byServing ? 1 : grams && grams > 0 ? grams : 100
-  const factor = byServing ? 1 : portion / 100
-  return [
-    {
-      name: food.name,
-      grams: byServing ? (food.gramsPerServing ?? null) : portion,
-      kcal: Math.round(food.kcal * factor),
-      protein: Math.round(food.protein * factor * 10) / 10,
-      carbs: Math.round(food.carbs * factor * 10) / 10,
-      fat: Math.round(food.fat * factor * 10) / 10,
-      extras: scaleExtras(food.extras, factor),
-      foodId: food.id,
-    },
-  ]
+
+  const wanted = grams && grams > 0 ? grams : null
+  if (food.per === 'serving') {
+    const perServing = food.gramsPerServing ?? 0
+    const servings = wanted && perServing > 0 ? wanted / perServing : 1
+    return [scaledItem(food, wanted ?? (food.gramsPerServing ?? null), servings)]
+  }
+
+  const portion = wanted ?? 100
+  return [scaledItem(food, portion, portion / 100)]
 }
 
 /** Filler words the user types around a food name, ignored when matching. */

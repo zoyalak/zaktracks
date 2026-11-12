@@ -91,6 +91,8 @@ export default function MealSheet({
 
   const extras = useMemo(() => itemsToExtras(items), [items])
   const pickResults = useMemo(() => searchFoods(pickQuery, foods), [pickQuery, foods])
+  /** Saved foods by id, so a row can say when its numbers came from one. */
+  const savedById = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
 
   const remainingAfter = remainingBefore - totals.kcal
   /** Where this meal belongs, in words: today, yesterday or a date. */
@@ -102,8 +104,20 @@ export default function MealSheet({
         : formatDayLabel(meal.date, { weekday: 'short', day: 'numeric', month: 'short' })
   const hasContent = name.trim().length > 0 || items.some((i) => i.name.trim() || i.kcal > 0)
 
-  const patch = (index: number, changes: Partial<LogItem>) =>
-    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...changes } : it)))
+  /**
+   * Edit a row in place. Retyping its name or numbers takes it away from the
+   * saved food it was priced from, so the "your food" mark goes with them.
+   */
+  const patch = (index: number, changes: Partial<LogItem>) => {
+    const leavesFood = ['name', 'kcal', 'protein', 'carbs', 'fat'].some((k) => k in changes)
+    setItems((prev) =>
+      prev.map((it, i) =>
+        i === index
+          ? { ...it, foodId: leavesFood ? undefined : it.foodId, ...changes }
+          : it,
+      ),
+    )
+  }
 
   /**
    * Portion size the grams field was focused on, so every keystroke scales
@@ -176,6 +190,8 @@ export default function MealSheet({
         const assumed = est.grams > 0 ? est.grams : grams
         const next: LogItem = {
           ...stillHere,
+          // The AI is pricing this row now, not the saved food it came from.
+          foodId: undefined,
           name: est.name || stillHere.name,
           grams: assumed ?? null,
           kcal: est.kcal,
@@ -330,6 +346,12 @@ export default function MealSheet({
             <p className="tiny muted" style={{ marginTop: -4, marginBottom: 8 }}>
               Estimating {item.name || 'this item'}…
             </p>
+          )}
+          {!estimating[index] && item.foodId && savedById.get(item.foodId) && (
+            <div className="row" style={{ gap: 6, marginTop: -4, marginBottom: 8 }}>
+              <span className="chip">your food</span>
+              <span className="tiny muted">{savedById.get(item.foodId)!.name}</span>
+            </div>
           )}
           <div className="edit-macros">
             <div>
