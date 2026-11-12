@@ -9,8 +9,11 @@ import {
   roundMacro,
   scaleExtras,
 } from '../lib/types'
+import type { Food } from '../lib/types'
 import { formatDayLabel, makeId, shiftKey, todayKey } from '../lib/date'
 import { ApiError, estimateIngredient } from '../lib/api'
+import { searchFoods } from '../lib/foods'
+import { useApp } from '../state/AppContext'
 import { Disclosure, Field, Notice, Sheet } from './ui'
 
 const emptyItem = (): LogItem => ({ name: '', grams: null, kcal: 0, protein: 0, carbs: 0, fat: 0 })
@@ -40,6 +43,10 @@ export default function MealSheet({
   /** Rows currently waiting on an AI estimate, by index. */
   const [estimating, setEstimating] = useState<Record<number, boolean>>({})
   const [aiNote, setAiNote] = useState<{ type: 'warn' | 'info'; text: string } | null>(null)
+  /** The saved-foods picker, so a label or recipe can go straight into a meal. */
+  const { foods } = useApp()
+  const [pickOpen, setPickOpen] = useState(false)
+  const [pickQuery, setPickQuery] = useState('')
   /**
    * The latest rows, readable after an await. Editing a meal means adding a
    * piece you forgot ("some crushed nuts"), which the AI has to price — so a
@@ -81,6 +88,7 @@ export default function MealSheet({
   )
 
   const extras = useMemo(() => itemsToExtras(items), [items])
+  const pickResults = useMemo(() => searchFoods(pickQuery, foods), [pickQuery, foods])
 
   const remainingAfter = remainingBefore - totals.kcal
   /** Where this meal belongs, in words: today, yesterday or a date. */
@@ -206,6 +214,43 @@ export default function MealSheet({
     void estimateItem(index)
   }
 
+  /**
+   * A saved food or recipe as meal rows. A label saved per serving counts as
+   * one serving; one saved per 100 g starts at 100 g, which the grams field can
+   * rescale. Recipes contribute their ingredients.
+   */
+  const foodToItems = (food: Food): LogItem[] => {
+    if (food.source === 'recipe' && food.ingredients?.length) {
+      return food.ingredients.map((i) => ({ ...i }))
+    }
+    const byServing = food.per === 'serving'
+    const factor = byServing ? 1 : 1
+    return [
+      {
+        name: food.name,
+        grams: byServing ? (food.gramsPerServing ?? null) : 100,
+        kcal: Math.round(food.kcal * factor),
+        protein: Math.round(food.protein * factor * 10) / 10,
+        carbs: Math.round(food.carbs * factor * 10) / 10,
+        fat: Math.round(food.fat * factor * 10) / 10,
+        extras: scaleExtras(food.extras, factor),
+        foodId: food.id,
+      },
+    ]
+  }
+
+  const addFood = (food: Food) => {
+    const fresh = foodToItems(food)
+    // Blank rows are dropped so the picked food lands where it can be read.
+    const keep = itemsRef.current
+      .map((it, i) => (it.name.trim() || it.kcal > 0 ? i : -1))
+      .filter((i) => i >= 0)
+    setItems((prev) => [...keep.map((i) => prev[i]), ...fresh])
+    setRaws((prev) => [...keep.map((i) => prev[i] ?? {}), ...fresh.map(() => ({}))])
+    setPickOpen(false)
+    setPickQuery('')
+  }
+
   const save = async () => {
     if (inFlight.current.size) await Promise.allSettled([...inFlight.current])
     const clean = itemsRef.current
@@ -252,7 +297,7 @@ export default function MealSheet({
 
       <div className="card-title" style={{ marginTop: 6 }}>
         <h2>Items</h2>
-        <span className="hint">type a new food, then ✨</span>
+        <span className="hint">type a new food, then ✨ · or pick a saved one</span>
       </div>
 
       {items.map((item, index) => (
@@ -327,16 +372,63 @@ export default function MealSheet({
         </div>
       ))}
 
-      <button
-        className="btn ghost small"
-        style={{ width: '100%' }}
-        onClick={() => {
-          setItems((prev) => [...prev, emptyItem()])
-          setRaws((prev) => [...prev, {}])
-        }}
-      >
-        + Add item
-      </button>
+      <div className="row" style={{ gap: 8 }}>
+        <button
+          className="btn ghost small grow"
+          onClick={() => {
+            setItems((prev) => [...prev, emptyItem()])
+            setRaws((prev) => [...prev, {}])
+          }}
+        >
+          + Add item
+        </button>
+        <button
+          className="btn ghost small grow"
+          onClick={() => setPickOpen((open) => !open)}
+        >
+          🥗 From my foods
+        </button>
+      </div>
+
+      {pickOpen && (
+        <div className="card tight" style={{ marginTop: 10 }}>
+          <div className="searchbar">
+            <span className="icon" aria-hidden>
+              🔍
+            </span>
+            <input
+              className="input"
+              autoFocus
+              value={pickQuery}
+              onChange={(e) => setPickQuery(e.target.value)}
+              placeholder="Search your foods and the built-in table…"
+            />
+          </div>
+          <div style={{ maxHeight: '34vh', overflowY: 'auto' }}>
+            {pickResults.map((f) => (
+              <button key={f.id} className="list-item" onClick={() => addFood(f)}>
+                <span className="grow">
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</span>
+                  <span className="tiny" style={{ display: 'block' }}>
+                    {f.source === 'recipe'
+                      ? `recipe · ${f.ingredients?.length ?? 0} ingredients`
+                      : f.per === 'serving'
+                        ? f.servingLabel ?? 'per serving'
+                        : `${f.kcal} kcal / 100 g`}
+                    {f.source !== 'builtin' ? ' · your food' : ''}
+                  </span>
+                </span>
+                <span className="num muted">{f.kcal}</span>
+              </button>
+            ))}
+            {!pickResults.length && (
+              <div className="empty">
+                Nothing matched. Add it in Foods → New food, then pick it here.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="total-strip" style={{ marginTop: 14 }}>
         <span className="muted">This meal</span>
