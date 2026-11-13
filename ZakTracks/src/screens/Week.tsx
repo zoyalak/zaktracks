@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
 import { targetsFor, weekSummary, sortedWeight } from '../lib/selectors'
-import { keyToDate, shiftKey, todayKey } from '../lib/date'
+import { keyToDate, todayKey } from '../lib/date'
 import { displayWeight, weightLabel } from '../lib/units'
 import { MacroBar, Notice, Segmented } from '../components/ui'
 
@@ -11,15 +11,8 @@ export default function Week() {
 
   const summary = useMemo(() => {
     if (!profile) return null
-    const targets = targetsFor(profile)
-    // The 7-day view is the Monday–Sunday week we are in, so it agrees with
-    // the Track box's weekly average instead of sliding with today.
-    if (days === '7') {
-      const today = todayKey()
-      const monday = shiftKey(today, -((keyToDate(today).getDay() + 6) % 7))
-      return weekSummary(meals, targets, 7, shiftKey(monday, 6))
-    }
-    return weekSummary(meals, targets, Number(days))
+    // Rolling windows ending today, so yesterday's numbers are always on screen.
+    return weekSummary(meals, targetsFor(profile), Number(days))
   }, [meals, profile, days])
 
   const weight = useMemo(() => sortedWeight(settings.weightLog).slice(-14), [settings.weightLog])
@@ -46,7 +39,7 @@ export default function Week() {
 
       <Segmented
         options={[
-          { value: '7', label: 'This week' },
+          { value: '7', label: '7 days' },
           { value: '14', label: '14 days' },
           { value: '30', label: '30 days' },
         ]}
@@ -57,9 +50,7 @@ export default function Week() {
       <div className="card" style={{ marginTop: 14 }}>
         <div className="card-title">
           <h2>Calories eaten</h2>
-          <span className="hint">
-            {days === '7' ? 'Mon–Sun · ' : ''}goal {targets.goalKcal.toLocaleString()} kcal
-          </span>
+          <span className="hint">goal {targets.goalKcal.toLocaleString()} kcal</span>
         </div>
         <div className="chart">
           <div className="chart-plot">
