@@ -111,30 +111,6 @@ export default function Week() {
           <span className="k">Average goal</span>
           <span className="v num">{summary.avgGoal.toLocaleString()} kcal</span>
         </div>
-        <div className="kv">
-          <span className="k">Total balance</span>
-          <span
-            className="v num"
-            style={{ color: summary.totalDelta <= 0 ? 'var(--accent)' : 'var(--danger)' }}
-          >
-            {summary.totalDelta > 0 ? '+' : ''}
-            {summary.totalDelta.toLocaleString()} kcal
-          </span>
-        </div>
-        <div className="kv">
-          <span className="k">Days within goal</span>
-          <span className="v num">
-            {summary.daysOnTarget} / {summary.loggedDays || 0}
-          </span>
-        </div>
-        <div className="kv">
-          <span className="k">Expected change</span>
-          <span className="v num">
-            {targets.dailyDeltaKcal === 0
-              ? 'hold steady'
-              : `${((targets.dailyDeltaKcal * (summary.loggedDays || 0)) / 7700).toFixed(2)} kg`}
-          </span>
-        </div>
       </div>
 
       {summary.loggedDays > 0 && (
