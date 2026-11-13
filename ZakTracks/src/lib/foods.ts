@@ -180,6 +180,17 @@ export function searchFoods(query: string, custom: Food[] = [], builtin = BUILTI
 
 const t1 = (n: number): number => Math.round(n * 10) / 10
 
+/**
+ * A saved food priced for a number of servings — half a serving, two servings.
+ * Saved recipes spread into their ingredients at that multiple.
+ */
+export function savedFoodServingRows(food: Food, servings: number): LogItem[] {
+  const s = Number.isFinite(servings) && servings > 0 ? servings : 1
+  if (food.source === 'recipe' && food.ingredients?.length) return scaleItems(food.ingredients, s)
+  const perServing = food.gramsPerServing ?? null
+  return [scaledItem(food, perServing ? t1(perServing * s) : null, s)]
+}
+
 const scaledItem = (food: Food, grams: number | null, factor: number): LogItem => ({
   name: food.name,
   grams,

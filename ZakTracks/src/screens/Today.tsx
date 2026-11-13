@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
 import { formatDayLabel, formatDayName, shiftKey, todayKey } from '../lib/date'
-import { mealsOnDate, targetsFor, totalsFor } from '../lib/selectors'
+import { mealsOnDate, targetsFor, totalsFor, weekAverage } from '../lib/selectors'
 import { displayWeight, toKg, weightLabel } from '../lib/units'
 import type { ExtraMacros, MealEntry } from '../lib/types'
 import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '../lib/types'
@@ -24,6 +24,9 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
   )
   const remaining = targets.goalKcal - totals.kcal
   const isToday = date === todayKey()
+  /** Monday–Sunday average for the week this day belongs to. */
+  const week = weekAverage(meals, date)
+  const weekOver = week.avg != null && week.avg > targets.goalKcal
   const latestWeight = settings.weightLog.length
     ? [...settings.weightLog].sort((a, b) => b.date.localeCompare(a.date))[0].kg
     : profile.weightKg
@@ -89,8 +92,28 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
               </span>
               <span className="v num">{targets.maintenance.toLocaleString()}</span>
             </div>
+            <div className="stat-row">
+              <span className="k">
+                <i className="dot" style={{ background: weekOver ? 'var(--danger)' : 'var(--accent)' }} />{' '}
+                Week avg
+              </span>
+              <span
+                className="v num"
+                style={{ color: weekOver ? 'var(--danger)' : 'var(--accent)' }}
+                title={`Monday to Sunday average over ${week.daysLogged} logged ${week.daysLogged === 1 ? 'day' : 'days'}, against a ${targets.goalKcal.toLocaleString()} kcal goal`}
+              >
+                {week.avg == null ? '—' : week.avg.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
+        <p className="tiny muted" style={{ margin: '10px 0 0' }}>
+          {week.avg == null
+            ? 'Week average (Mon–Sun) appears once you log a day.'
+            : weekOver
+              ? `Mon–Sun average is ${(week.avg - targets.goalKcal).toLocaleString()} kcal a day over your goal.`
+              : `Mon–Sun average, ${week.daysLogged} ${week.daysLogged === 1 ? 'day' : 'days'} logged so far.`}
+        </p>
       </div>
 
       <div className="card">

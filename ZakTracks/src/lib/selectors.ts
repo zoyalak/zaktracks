@@ -1,7 +1,7 @@
 import type { ExtraTargets, Macro, MealEntry, Profile, WeightPoint } from './types'
 import { addMacro, emptyMacro, mealToMacro, roundMacro } from './types'
 import { goalPlan, macroTargets } from './nutrition'
-import { lastNDays } from './date'
+import { keyToDate, lastNDays, shiftKey, todayKey } from './date'
 
 export interface Targets {
   maintenance: number
@@ -95,6 +95,37 @@ export function weekSummary(meals: MealEntry[], targets: Targets, days = 7, endK
       fat: sumMacro.fat / n,
     }),
   }
+}
+
+export interface WeekAverage {
+  /** Average daily calories over the days logged this week; null when none. */
+  avg: number | null
+  daysLogged: number
+  /** Monday and Sunday keys of the week in question. */
+  from: string
+  to: string
+}
+
+/**
+ * Average daily intake for the Monday–Sunday week holding `endKey`, counting
+ * only days that were logged — a half-finished week shouldn't read as a
+ * starvation week.
+ */
+export function weekAverage(meals: MealEntry[], endKey: string = todayKey()): WeekAverage {
+  const monday = shiftKey(endKey, -(keyToDate(endKey).getDay() + 6) % 7)
+  const sunday = shiftKey(monday, 6)
+  let sum = 0
+  let days = 0
+  for (let i = 0; i < 7; i++) {
+    const key = shiftKey(monday, i)
+    if (key > endKey) break
+    const kcal = totalsFor(meals, key).kcal
+    if (kcal > 0) {
+      sum += kcal
+      days += 1
+    }
+  }
+  return { avg: days ? Math.round(sum / days) : null, daysLogged: days, from: monday, to: sunday }
 }
 
 /** Weight entries sorted by date, newest last. */

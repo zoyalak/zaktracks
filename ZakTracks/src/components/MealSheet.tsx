@@ -12,7 +12,7 @@ import {
 import type { Food } from '../lib/types'
 import { formatDayLabel, makeId, shiftKey, todayKey } from '../lib/date'
 import { ApiError, estimateIngredient } from '../lib/api'
-import { savedFoodRows, searchFoods } from '../lib/foods'
+import { savedFoodRows, savedFoodServingRows, searchFoods } from '../lib/foods'
 import { useApp } from '../state/AppContext'
 import { Disclosure, Field, Notice, Sheet } from './ui'
 
@@ -49,6 +49,8 @@ export default function MealSheet({
   const [pickQuery, setPickQuery] = useState('')
   /** Last food picked, shown under the search box while the picker stays open. */
   const [lastPicked, setLastPicked] = useState('')
+  /** A per-serving food waiting on "how many servings?" before it joins the meal. */
+  const [servingPick, setServingPick] = useState<{ food: Food; value: string } | null>(null)
   /**
    * The latest rows, readable after an await. Editing a meal means adding a
    * piece you forgot ("some crushed nuts"), which the AI has to price — so a
@@ -233,19 +235,44 @@ export default function MealSheet({
   }
 
   /**
-   * Drop a saved food into the meal and leave the picker open, so several
-   * ingredients of one sandwich can be added without reopening it each time.
-   * Blank rows are cleared first so the picked food lands where it can be read.
+   * Drop rows into the meal and leave the picker open, so several ingredients
+   * of one sandwich can be added without reopening it each time. Blank rows
+   * are cleared first so the picked food lands where it can be read.
    */
-  const addFood = (food: Food) => {
-    const fresh = savedFoodRows(food)
+  const appendRows = (fresh: LogItem[], label: string) => {
     const keep = itemsRef.current
       .map((it, i) => (it.name.trim() || it.kcal > 0 ? i : -1))
       .filter((i) => i >= 0)
     setItems((prev) => [...keep.map((i) => prev[i]), ...fresh])
     setRaws((prev) => [...keep.map((i) => prev[i] ?? {}), ...fresh.map(() => ({}))])
-    setLastPicked(food.name)
+    setLastPicked(label)
   }
+
+  const addFood = (food: Food) => appendRows(savedFoodRows(food), food.name)
+
+  /** A food saved per serving is added at whatever multiple was chosen. */
+  const addServingFood = (food: Food, servings: number) => {
+    const s = Number.isFinite(servings) && servings > 0 ? servings : 1
+    appendRows(savedFoodServingRows(food, s), `${food.name} × ${s}`)
+    setServingPick(null)
+  }
+
+  const servingRows = servingPick
+    ? savedFoodServingRows(servingPick.food, parseFloat(servingPick.value))
+    : []
+  const servingPreview = servingRows.length
+    ? roundMacro(
+        servingRows.reduce(
+          (acc, i) => ({
+            kcal: acc.kcal + i.kcal,
+            protein: acc.protein + i.protein,
+            carbs: acc.carbs + i.carbs,
+            fat: acc.fat + i.fat,
+          }),
+          emptyMacro(),
+        ),
+      )
+    : null
 
   const save = async () => {
     if (inFlight.current.size) await Promise.allSettled([...inFlight.current])
@@ -411,16 +438,77 @@ export default function MealSheet({
               Added {lastPicked} — keep picking, then close this to edit the meal.
             </p>
           )}
+
+          {servingPick && (
+            <div className="card tight" style={{ marginBottom: 10 }}>
+              <div className="row between" style={{ marginBottom: 6 }}>
+                <b style={{ fontSize: 14 }}>{servingPick.food.name}</b>
+                <button className="icon-btn" aria-label="Cancel servings" onClick={() => setServingPick(null)}>
+                  ✕
+                </button>
+              </div>
+              <p className="tiny muted" style={{ marginBottom: 8 }}>
+                One serving: {servingPick.food.servingLabel ?? 'as packaged'}
+                {servingPick.food.gramsPerServing ? ` · ${servingPick.food.gramsPerServing} g` : ''}
+              </p>
+              <Field label="How many servings?">
+                <input
+                  className="input"
+                  type="number"
+                  inputMode="decimal"
+                  step={0.5}
+                  min={0}
+                  value={servingPick.value}
+                  onChange={(e) => setServingPick({ ...servingPick, value: e.target.value })}
+                />
+              </Field>
+              <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+                {['0.5', '1', '1.5', '2'].map((v) => (
+                  <button
+                    key={v}
+                    className={`btn small${servingPick.value === v ? ' primary' : ' ghost'}`}
+                    onClick={() => setServingPick({ ...servingPick, value: v })}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+              {servingPreview && (
+                <div className="total-strip" style={{ marginBottom: 10 }}>
+                  <span className="muted">This portion</span>
+                  <b className="num">
+                    {servingPreview.kcal} kcal · {servingPreview.protein}P · {servingPreview.carbs}C ·{' '}
+                    {servingPreview.fat}F
+                  </b>
+                </div>
+              )}
+              <button
+                className="btn primary"
+                disabled={!(parseFloat(servingPick.value) > 0)}
+                onClick={() => addServingFood(servingPick.food, parseFloat(servingPick.value))}
+              >
+                Add to meal
+              </button>
+            </div>
+          )}
           <div style={{ maxHeight: '34vh', overflowY: 'auto' }}>
             {pickResults.map((f) => (
-              <button key={f.id} className="list-item" onClick={() => addFood(f)}>
+              <button
+                key={f.id}
+                className="list-item"
+                onClick={() =>
+                  f.per === 'serving'
+                    ? setServingPick({ food: f, value: '1' })
+                    : addFood(f)
+                }
+              >
                 <span className="grow">
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</span>
                   <span className="tiny" style={{ display: 'block' }}>
                     {f.source === 'recipe'
                       ? `recipe · ${f.ingredients?.length ?? 0} ingredients`
                       : f.per === 'serving'
-                        ? f.servingLabel ?? 'per serving'
+                        ? `${f.servingLabel ?? 'per serving'} · pick servings`
                         : `${f.kcal} kcal / 100 g`}
                     {f.source !== 'builtin' ? ' · your food' : ''}
                   </span>
