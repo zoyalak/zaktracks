@@ -52,28 +52,37 @@ export default function Week() {
           <span className="hint">goal {targets.goalKcal.toLocaleString()} kcal</span>
         </div>
         <div className="chart">
-          <div className="chart-goal" style={{ bottom: `${goalPct}%` }}>
-            <span>goal</span>
-          </div>
-          {summary.days.map((d) => {
-            const h = (d.eaten.kcal / scale) * 100
-            const over = d.eaten.kcal > d.goalKcal
-            return (
-              <div key={d.date} className={`bar-col${d.date === summary.days[summary.days.length - 1].date ? ' today' : ''}`}>
-                <div
-                  className={`bar${d.logged ? (over ? ' over' : '') : ' empty'}`}
-                  style={{ height: `${Math.max(d.logged ? 3 : 1.5, h)}%` }}
-                >
-                  {d.logged && Number(days) <= 14 && (
-                    <span className="bar-val">{Math.round(d.eaten.kcal)}</span>
-                  )}
+          <div className="chart-plot">
+            <div className="chart-goal" style={{ bottom: `${goalPct}%` }}>
+              <span>goal</span>
+            </div>
+            {summary.days.map((d) => {
+              const h = (d.eaten.kcal / scale) * 100
+              const over = d.eaten.kcal > d.goalKcal
+              return (
+                <div key={d.date} className="bar-col">
+                  <div
+                    className={`bar${d.logged ? (over ? ' over' : '') : ' empty'}`}
+                    style={{ height: `${Math.max(d.logged ? 3 : 1.5, h)}%` }}
+                  >
+                    {d.logged && Number(days) <= 14 && (
+                      <span className="bar-val">{Math.round(d.eaten.kcal)}</span>
+                    )}
+                  </div>
                 </div>
-                <span className="bar-label">
-                  {keyToDate(d.date).toLocaleDateString(undefined, { weekday: 'narrow' })}
-                </span>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+          <div className="chart-labels">
+            {summary.days.map((d) => (
+              <span
+                key={d.date}
+                className={`bar-label${d.date === summary.days[summary.days.length - 1].date ? ' today' : ''}`}
+              >
+                {keyToDate(d.date).toLocaleDateString(undefined, { weekday: 'narrow' })}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="legend">
           <span>
