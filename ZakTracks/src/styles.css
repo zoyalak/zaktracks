@@ -3,10 +3,10 @@
 :root {
   /* Native date/time pickers and scrollbars follow the dark theme. */
   color-scheme: dark;
-  --bg: #1e1442; /* deep grape */
-  --surface: #2d2063; /* card */
-  --surface-2: #372876;
-  --surface-3: #41308a;
+  --bg: #150d30; /* deep grape */
+  --surface: #241a4f; /* card */
+  --surface-2: #2c2060;
+  --surface-3: #352672;
   --border: #43338a;
   --border-strong: #5b49a6;
   --text: #fff8ff;
@@ -24,8 +24,8 @@
   --gold-soft: rgba(255, 210, 63, 0.14);
 
   /* lighter purple tappable surface: makes clickable boxes read as clickable */
-  --click: #3a2b78;
-  --click-strong: #4d3aa0;
+  --click: #2f2366;
+  --click-strong: #3f2f86;
 
   --protein: #2ef2c5;
   --carbs: #ffd23f;
@@ -855,7 +855,7 @@ input[type='range']:focus-visible {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: rgba(30, 20, 66, 0.94);
+  background: rgba(21, 13, 48, 0.94);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   padding-bottom: var(--safe-b);
@@ -1348,7 +1348,7 @@ input[type='range']:focus-visible {
   gap: 8px;
   align-items: flex-end;
   padding: 10px 16px;
-  background: rgba(30, 20, 66, 0.96);
+  background: rgba(21, 13, 48, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
 }
