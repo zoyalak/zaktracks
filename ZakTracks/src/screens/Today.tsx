@@ -86,7 +86,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
           <div className="ring-stats">
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--wine-1)' }} /> Target
+                <i className="dot" style={{ background: 'var(--bg)' }} /> Target
               </span>
               <span className="v num">
                 {unlogged ? '—' : totals.kcal.toLocaleString()} /{' '}
@@ -95,7 +95,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--wine-2)' }} />{' '}
+                <i className="dot" style={{ background: 'var(--bg)' }} />{' '}
                 Week avg
               </span>
               <span
@@ -108,7 +108,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--wine-3)' }} />
+                <i className="dot" style={{ background: 'var(--bg)' }} />
                 <span>
                   Daily Allowance
                   <span className="allowance-note">(to stay on track for the week)</span>
@@ -127,7 +127,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--wine-4)' }} /> Maintenance
+                <i className="dot" style={{ background: 'var(--text-dim)' }} /> Maintenance
               </span>
               <span className="v num">{targets.maintenance.toLocaleString()}</span>
             </div>

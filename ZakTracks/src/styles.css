@@ -43,12 +43,6 @@
   --warn-soft: rgba(255, 138, 61, 0.14);
   --info: #e0cdb8;
 
-  /* Four wine steps for the stat dots in the main box, light enough to read
-     against the taupe card. */
-  --wine-1: #7d2b41;
-  --wine-2: #a53c58;
-  --wine-3: #cc6d86;
-  --wine-4: #eeb0c0;
 
   --radius: 18px;
   --radius-sm: 12px;
