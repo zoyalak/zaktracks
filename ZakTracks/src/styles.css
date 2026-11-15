@@ -3,43 +3,43 @@
 :root {
   /* Native date/time pickers and scrollbars follow the dark theme. */
   color-scheme: dark;
-  --bg: #1c130e; /* dark espresso brown */
-  --surface: #0f3d2e; /* dark emerald */
-  --surface-2: #164a38;
-  --surface-3: #1c5643;
-  --border: rgba(242, 236, 223, 0.14);
-  --border-strong: rgba(242, 236, 223, 0.28);
-  --text: #ffffff;
-  --text-dim: #b7c4bc;
-  --text-faint: #8fa199;
+  --bg: #1e1442; /* deep grape */
+  --surface: #2d2063; /* card */
+  --surface-2: #372876;
+  --surface-3: #41308a;
+  --border: #43338a;
+  --border-strong: #5b49a6;
+  --text: #fff8ff;
+  --text-dim: #b8aee0;
+  --text-faint: #9a8fc8;
 
-  --accent: #3ddc97; /* mint */
-  --accent-strong: #2ec486;
-  --accent-soft: rgba(61, 220, 151, 0.16);
-  --primary: #b08a62; /* caramel */
-  --primary-soft: rgba(176, 138, 98, 0.18);
-  --beige: #f2ecdf;
+  --accent: #2ef2c5; /* bright mint — on track */
+  --accent-strong: #1fc9a2;
+  --accent-soft: rgba(46, 242, 197, 0.16);
+  --primary: #ff5caa; /* bubblegum pink */
+  --primary-soft: rgba(255, 92, 170, 0.18);
+  --beige: #fff8ff;
 
-  --gold: #b08a62;
-  --gold-soft: rgba(176, 138, 98, 0.14);
+  --gold: #ffd23f; /* sunshine — near the limit */
+  --gold-soft: rgba(255, 210, 63, 0.14);
 
-  /* light-brown tappable surface: makes clickable boxes read as clickable */
-  --click: #261e19;
-  --click-strong: #453427;
+  /* lighter purple tappable surface: makes clickable boxes read as clickable */
+  --click: #3a2b78;
+  --click-strong: #4d3aa0;
 
-  --protein: #3ddc97;
-  --carbs: #f2ecdf;
-  --fat: #b08a62;
+  --protein: #2ef2c5;
+  --carbs: #ffd23f;
+  --fat: #ff5caa;
 
-  --danger: #f87171;
-  --danger-soft: rgba(248, 113, 113, 0.13);
-  --warn: #b08a62;
-  --warn-soft: rgba(176, 138, 98, 0.14);
-  --info: #d4d4d8;
+  --danger: #ff6b5e; /* coral — over the limit */
+  --danger-soft: rgba(255, 107, 94, 0.14);
+  --warn: #ffd23f;
+  --warn-soft: rgba(255, 210, 63, 0.14);
+  --info: #b8aee0;
 
   --radius: 18px;
   --radius-sm: 12px;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow: 0 10px 30px rgba(10, 4, 28, 0.55);
   --nav-h: 66px;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
@@ -321,14 +321,14 @@ h4 {
   background: linear-gradient(90deg, var(--accent-strong), var(--protein));
 }
 .fill.carbs {
-  background: linear-gradient(90deg, #8a7f6d, var(--carbs));
+  background: linear-gradient(90deg, #b3821d, var(--carbs));
 }
 .fill.fat {
-  background: linear-gradient(90deg, #96806a, var(--fat));
+  background: linear-gradient(90deg, #b03c7a, var(--fat));
 }
 
 .macro-bar.over .fill {
-  background: linear-gradient(90deg, #be3a4f, var(--danger));
+  background: linear-gradient(90deg, #c2463a, var(--danger));
 }
 
 /* ---------------------------------------------------------------- meals */
@@ -399,11 +399,11 @@ h4 {
 }
 .chip.c {
   color: var(--carbs);
-  background: rgba(242, 236, 223, 0.1);
+  background: rgba(255, 210, 63, 0.14);
 }
 .chip.f {
   color: var(--fat);
-  background: var(--gold-soft);
+  background: rgba(255, 92, 170, 0.14);
 }
 
 .meal-kcal {
@@ -462,7 +462,7 @@ h4 {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1.5px dashed rgba(176, 138, 98, 0.55);
+  border-top: 1.5px dashed rgba(255, 210, 63, 0.6);
   pointer-events: none;
 }
 
@@ -496,7 +496,7 @@ h4 {
 }
 
 .bar.over {
-  background: linear-gradient(180deg, #f8a3ac, #dc4f66);
+  background: linear-gradient(180deg, #ff9c8f, var(--danger));
 }
 
 .bar.empty {
@@ -566,10 +566,10 @@ h4 {
 }
 
 .btn.primary {
-  background: linear-gradient(180deg, #c9a276, #b08a62);
-  color: #1c130e;
+  background: linear-gradient(180deg, #ff7cbb, var(--primary));
+  color: var(--bg);
   border-color: transparent;
-  box-shadow: 0 8px 20px rgba(201, 162, 118, 0.32);
+  box-shadow: 0 8px 20px rgba(255, 92, 170, 0.32);
 }
 
 .btn.ghost {
@@ -646,7 +646,7 @@ textarea.input {
 
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 92, 170, 0.28);
 }
 
 textarea.input {
@@ -667,7 +667,7 @@ select.input {
 }
 
 select.input option {
-  background: #1c130e;
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -855,7 +855,7 @@ input[type='range']:focus-visible {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: rgba(28, 19, 14, 0.94);
+  background: rgba(30, 20, 66, 0.94);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   padding-bottom: var(--safe-b);
@@ -928,21 +928,21 @@ input[type='range']:focus-visible {
   border-radius: 13px;
   font-size: 13px;
   line-height: 1.4;
-  background: var(--primary-soft);
-  color: var(--beige);
-  border: 1px solid rgba(176, 138, 98, 0.35);
+  background: var(--warn-soft);
+  color: var(--text);
+  border: 1px solid rgba(255, 210, 63, 0.35);
   margin-bottom: 13px;
 }
 
 .notice.error {
   background: var(--danger-soft);
-  color: #fecdd3;
-  border-color: rgba(248, 113, 113, 0.25);
+  color: #ffbdb6;
+  border-color: rgba(255, 107, 94, 0.3);
 }
 
 .notice.info {
   background: rgba(255, 255, 255, 0.05);
-  color: #d4d4d8;
+  color: var(--text-dim);
   border-color: rgba(255, 255, 255, 0.14);
 }
 
@@ -1049,7 +1049,7 @@ input[type='range']:focus-visible {
 .pill.active {
   background: var(--accent-soft);
   color: var(--accent);
-  border-color: rgba(61, 220, 151, 0.45);
+  border-color: rgba(46, 242, 197, 0.45);
 }
 
 .edit-row {
@@ -1102,12 +1102,12 @@ input[type='range']:focus-visible {
   width: 58px;
   height: 58px;
   border-radius: 20px;
-  background: linear-gradient(180deg, #c9a276, #b08a62);
-  color: #1c130e;
+  background: linear-gradient(180deg, #ff7cbb, var(--primary));
+  color: var(--bg);
   font-size: 26px;
   display: grid;
   place-items: center;
-  box-shadow: 0 12px 26px rgba(176, 138, 98, 0.35);
+  box-shadow: 0 12px 26px rgba(255, 92, 170, 0.4);
   z-index: 40;
   transition: transform 0.08s ease;
 }
@@ -1326,7 +1326,7 @@ input[type='range']:focus-visible {
 .msg.me {
   align-self: flex-end;
   background: var(--primary);
-  color: #1c130e;
+  color: var(--bg);
   font-weight: 550;
   border-bottom-right-radius: 6px;
 }
@@ -1348,7 +1348,7 @@ input[type='range']:focus-visible {
   gap: 8px;
   align-items: flex-end;
   padding: 10px 16px;
-  background: rgba(28, 19, 14, 0.96);
+  background: rgba(30, 20, 66, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
 }
