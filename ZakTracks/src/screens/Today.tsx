@@ -120,7 +120,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'rgba(42,10,20,.28)' }} /> Maintenance
+                <i className="dot" style={{ background: 'rgba(255,255,255,.3)' }} /> Maintenance
               </span>
               <span className="v num">{targets.maintenance.toLocaleString()}</span>
             </div>
@@ -156,7 +156,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
                   key={k}
                   name={EXTRA_META[k].label}
                   tone="muted"
-                  color="rgba(122,90,74,0.9)"
+                  color="rgba(224,205,184,0.9)"
                   unit={unit}
                   value={dayExtras[k]}
                   target={goal}

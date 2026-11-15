@@ -4,44 +4,44 @@
   /* Native date/time pickers and scrollbars follow the dark theme. */
   color-scheme: dark;
   --bg: #2a0a14; /* dark wine */
-  --surface: #f3e6d0; /* card — light beige */
-  --surface-2: #e8d6b8; /* raised elements and inputs on cards */
-  --surface-3: #dcc9a8;
-  --border: #d4be9a;
-  --border-strong: #c3a878;
+  --surface: #6b5344; /* card — mocha taupe */
+  --surface-2: #7d6252; /* raised elements and inputs */
+  --surface-3: #8a6e5c;
+  --border: #957a67;
+  --border-strong: #a68a76;
 
   /* text colours are split by what they sit on */
-  --text: #2a0a14; /* on cards */
-  --text-dim: #7a5a4a; /* muted on cards */
-  --text-faint: #9c7f6d;
+  --text: #fff3e6; /* warm cream */
+  --text-dim: #e0cdb8; /* muted on cards */
+  --text-faint: #c4ab92;
   --text-on-bg: #fff3e6; /* on the wine background */
   --text-on-bg-dim: #cfa0ac;
 
-  --accent: #1e8f4e; /* on track, on cards */
-  --accent-strong: #16713d;
-  --accent-soft: rgba(30, 143, 78, 0.14);
-  --accent-bg: #7ae582; /* on track, on the background */
+  --accent: #8cf29a; /* fresh green — on track */
+  --accent-strong: #6bd97a;
+  --accent-soft: rgba(140, 242, 154, 0.16);
+  --accent-bg: #8cf29a;
   --primary: #f5b921; /* yellow gold */
   --primary-soft: rgba(245, 185, 33, 0.22);
-  --beige: #f3e6d0;
+  --beige: #fff3e6;
 
-  --gold: #d97a1f; /* near the limit, readable on beige */
-  --gold-soft: rgba(217, 122, 31, 0.14);
+  --gold: #ff8a3d; /* near the limit */
+  --gold-soft: rgba(255, 138, 61, 0.14);
 
-  /* raised beige tappable surface: makes clickable boxes read as clickable */
-  --click: #e8d6b8;
-  --click-strong: #dcc9a8;
+  /* raised taupe tappable surface: makes clickable boxes read as clickable */
+  --click: #7d6252;
+  --click-strong: #8a6e5c;
 
-  --protein: #1e8f4e;
-  --carbs: #b07d0a;
-  --fat: #7a5a4a;
+  --protein: #8cf29a;
+  --carbs: #f5b921;
+  --fat: #e0cdb8;
 
-  --danger: #c62f3c; /* over the limit, readable on beige */
-  --danger-fill: #ff4d5a;
-  --danger-soft: rgba(198, 47, 60, 0.12);
-  --warn: #b8651a;
-  --warn-soft: rgba(217, 122, 31, 0.16);
-  --info: #7a5a4a;
+  --danger: #ff6b6b; /* over the limit */
+  --danger-fill: #ff6b6b;
+  --danger-soft: rgba(255, 107, 107, 0.14);
+  --warn: #ff8a3d;
+  --warn-soft: rgba(255, 138, 61, 0.14);
+  --info: #e0cdb8;
 
   --radius: 18px;
   --radius-sm: 12px;
@@ -67,7 +67,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
   background: var(--bg);
-  color: var(--text-on-bg);
+  color: var(--text);
   font-size: 16px;
   line-height: 1.45;
   overscroll-behavior-y: none;
@@ -313,7 +313,7 @@ h4 {
 .track {
   height: 9px;
   border-radius: 99px;
-  background: rgba(42, 10, 20, 0.1);
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -328,14 +328,14 @@ h4 {
   background: linear-gradient(90deg, var(--accent-strong), var(--protein));
 }
 .fill.carbs {
-  background: linear-gradient(90deg, #8f6508, var(--carbs));
+  background: linear-gradient(90deg, #c08f14, var(--carbs));
 }
 .fill.fat {
-  background: linear-gradient(90deg, #5f463a, var(--fat));
+  background: linear-gradient(90deg, #a8907a, var(--fat));
 }
 
 .macro-bar.over .fill {
-  background: linear-gradient(90deg, #e05360, var(--danger-fill));
+  background: linear-gradient(90deg, #d94f4f, var(--danger-fill));
 }
 
 /* ---------------------------------------------------------------- meals */
@@ -396,7 +396,7 @@ h4 {
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 99px;
-  background: rgba(42, 10, 20, 0.07);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-dim);
   white-space: nowrap;
 }
@@ -407,11 +407,11 @@ h4 {
 }
 .chip.c {
   color: var(--carbs);
-  background: rgba(176, 125, 10, 0.14);
+  background: rgba(245, 185, 33, 0.14);
 }
 .chip.f {
   color: var(--fat);
-  background: rgba(122, 90, 74, 0.14);
+  background: rgba(224, 205, 184, 0.16);
 }
 
 .meal-kcal {
@@ -470,7 +470,7 @@ h4 {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1.5px dashed rgba(217, 122, 31, 0.7);
+  border-top: 1.5px dashed rgba(255, 138, 61, 0.65);
   pointer-events: none;
 }
 
@@ -504,12 +504,12 @@ h4 {
 }
 
 .bar.over {
-  background: linear-gradient(180deg, #ff8a95, var(--danger-fill));
+  background: linear-gradient(180deg, #ff9a9a, var(--danger-fill));
 }
 
 .bar.empty {
-  background: rgba(42, 10, 20, 0.06);
-  border: 1px dashed rgba(42, 10, 20, 0.18);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
 }
 
 .bar-val {
@@ -573,13 +573,11 @@ h4 {
   transform: scale(0.985);
 }
 
-/* Gold on beige is hard to read, so on-card primary buttons invert: dark wine
-   with gold lettering. The floating + sits on the background and stays gold. */
 .btn.primary {
-  background: var(--text);
-  color: var(--primary);
+  background: linear-gradient(180deg, #ffd24f, var(--primary));
+  color: var(--bg);
   border-color: transparent;
-  box-shadow: 0 8px 20px rgba(42, 10, 20, 0.18);
+  box-shadow: 0 8px 20px rgba(245, 185, 33, 0.3);
 }
 
 .btn.ghost {
@@ -823,7 +821,7 @@ input[type='range']:focus-visible {
   width: 38px;
   height: 4px;
   border-radius: 99px;
-  background: rgba(42, 10, 20, 0.22);
+  background: rgba(255, 255, 255, 0.24);
   margin: 6px auto 12px;
 }
 
@@ -941,20 +939,20 @@ input[type='range']:focus-visible {
   line-height: 1.4;
   background: var(--warn-soft);
   color: var(--text);
-  border: 1px solid rgba(217, 122, 31, 0.35);
+  border: 1px solid rgba(255, 138, 61, 0.35);
   margin-bottom: 13px;
 }
 
 .notice.error {
   background: var(--danger-soft);
-  color: #a3222d;
-  border-color: rgba(198, 47, 60, 0.3);
+  color: #ffc9c9;
+  border-color: rgba(255, 107, 107, 0.32);
 }
 
 .notice.info {
-  background: rgba(42, 10, 20, 0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-dim);
-  border-color: rgba(42, 10, 20, 0.14);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .empty {
@@ -1061,7 +1059,7 @@ input[type='range']:focus-visible {
 .pill.active {
   background: var(--accent-soft);
   color: var(--accent);
-  border-color: rgba(30, 143, 78, 0.45);
+  border-color: rgba(140, 242, 154, 0.45);
 }
 
 .edit-row {
@@ -1134,7 +1132,7 @@ input[type='range']:focus-visible {
   justify-content: space-between;
   padding: 12px 14px;
   border-radius: 13px;
-  background: rgba(42, 10, 20, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border);
   margin-bottom: 13px;
   font-size: 13.5px;
@@ -1192,7 +1190,7 @@ input[type='range']:focus-visible {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(42, 10, 20, 0.16);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .step-dots i.on {
@@ -1235,7 +1233,7 @@ input[type='range']:focus-visible {
   width: 46px;
   height: 28px;
   border-radius: 99px;
-  background: rgba(42, 10, 20, 0.16);
+  background: rgba(255, 255, 255, 0.18);
   position: relative;
   flex: 0 0 auto;
   transition: background 0.18s ease;

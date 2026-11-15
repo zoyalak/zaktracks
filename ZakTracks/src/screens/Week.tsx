@@ -93,7 +93,7 @@ export default function Week() {
             <i style={{ background: 'var(--danger)' }} /> over goal
           </span>
           <span>
-            <i style={{ background: 'rgba(42,10,20,.18)' }} /> not logged
+            <i style={{ background: 'rgba(255,255,255,.18)' }} /> not logged
           </span>
         </div>
       </div>
@@ -182,7 +182,7 @@ function WeightTrend({
           x2={w}
           y1={y(target)}
           y2={y(target)}
-          stroke="rgba(217,122,31,.8)"
+          stroke="rgba(255,138,61,.72)"
           strokeDasharray="4 4"
           strokeWidth={1.5}
         />
