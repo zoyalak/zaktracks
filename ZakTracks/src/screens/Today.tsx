@@ -156,7 +156,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
                   key={k}
                   name={EXTRA_META[k].label}
                   tone="muted"
-                  color="rgba(127,181,160,0.9)"
+                  color="rgba(142,155,168,0.9)"
                   unit={unit}
                   value={dayExtras[k]}
                   target={goal}
