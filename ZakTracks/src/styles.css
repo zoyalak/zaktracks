@@ -3,7 +3,7 @@
 :root {
   /* Native date/time pickers and scrollbars follow the dark theme. */
   color-scheme: dark;
-  --bg: #2a0a14; /* dark wine */
+  --bg: #1c060e; /* darker wine */
   --surface: #6b5344; /* card — mocha taupe */
   --surface-2: #7d6252; /* raised elements and inputs */
   --surface-3: #8a6e5c;
@@ -864,7 +864,7 @@ input[type='range']:focus-visible {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: rgba(42, 10, 20, 0.94);
+  background: rgba(28, 6, 14, 0.94);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   padding-bottom: var(--safe-b);
@@ -1359,7 +1359,7 @@ input[type='range']:focus-visible {
   gap: 8px;
   align-items: flex-end;
   padding: 10px 16px;
-  background: rgba(42, 10, 20, 0.96);
+  background: rgba(28, 6, 14, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
 }
