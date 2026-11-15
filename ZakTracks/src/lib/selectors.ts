@@ -59,7 +59,8 @@ export function weekStats(meals: MealEntry[], targets: Targets, days = 7, endKey
       eaten,
       goalKcal: targets.goalKcal,
       delta: eaten.kcal - targets.goalKcal,
-      logged: eaten.kcal > 0,
+      // A day counts as logged when it holds a meal, even if its items add up to 0.
+      logged: mealsOnDate(meals, date).length > 0,
     }
   })
 }
@@ -133,11 +134,10 @@ export function weekAverage(
   for (let i = 0; i < 7; i++) {
     const key = shiftKey(monday, i)
     if (key > endKey) break
-    const kcal = totalsFor(meals, key).kcal
-    if (kcal > 0) {
-      eaten += kcal
-      days += 1
-    }
+    // Days without a log are left out entirely: they are unknown, not zero.
+    if (mealsOnDate(meals, key).length === 0) continue
+    eaten += totalsFor(meals, key).kcal
+    days += 1
   }
   const daysLeft = 7 - dow
   // Each remaining day adds one more day to the average's denominator, so the
