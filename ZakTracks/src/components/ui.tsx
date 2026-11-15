@@ -24,7 +24,7 @@ export function CloverLogo({
     >
       {/* five beige heart-shaped leaves radiating from the centre */}
       {[0, 72, 144, 216, 288].map((deg) => (
-        <g key={deg} transform={`rotate(${deg} 32 32)`} fill="#FFF8FF">
+        <g key={deg} transform={`rotate(${deg} 32 32)`} fill="#FDF6E3">
           {/* two round lobes + a tapering wedge: an obcordate clover leaflet */}
           <circle cx="26" cy="11.5" r="5.6" />
           <circle cx="38" cy="11.5" r="5.6" />
@@ -32,7 +32,7 @@ export function CloverLogo({
         </g>
       ))}
       {/* small centre where the five leaf tips meet */}
-      <circle cx="32" cy="32" r="3.6" fill="#FFF8FF" />
+      <circle cx="32" cy="32" r="3.6" fill="#FDF6E3" />
     </svg>
   )
 }

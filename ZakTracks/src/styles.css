@@ -3,43 +3,43 @@
 :root {
   /* Native date/time pickers and scrollbars follow the dark theme. */
   color-scheme: dark;
-  --bg: #150d30; /* deep grape */
-  --surface: #241a4f; /* card */
-  --surface-2: #2c2060;
-  --surface-3: #352672;
-  --border: #43338a;
-  --border-strong: #5b49a6;
-  --text: #fff8ff;
-  --text-dim: #b8aee0;
-  --text-faint: #9a8fc8;
+  --bg: #07231c; /* deep emerald, nearly black */
+  --surface: #0e3a2e; /* card */
+  --surface-2: #124737;
+  --surface-3: #1a5745;
+  --border: #1c5a46;
+  --border-strong: #2a7359;
+  --text: #fdf6e3;
+  --text-dim: #7fb5a0;
+  --text-faint: #5f9483;
 
-  --accent: #2ef2c5; /* bright mint — on track */
-  --accent-strong: #1fc9a2;
-  --accent-soft: rgba(46, 242, 197, 0.16);
-  --primary: #ff5caa; /* bubblegum pink */
-  --primary-soft: rgba(255, 92, 170, 0.18);
-  --beige: #fff8ff;
+  --accent: #5be3a4; /* mint — on track */
+  --accent-strong: #3fc98a;
+  --accent-soft: rgba(91, 227, 164, 0.16);
+  --primary: #f5c451; /* gold */
+  --primary-soft: rgba(245, 196, 81, 0.18);
+  --beige: #fdf6e3;
 
-  --gold: #ffd23f; /* sunshine — near the limit */
-  --gold-soft: rgba(255, 210, 63, 0.14);
+  --gold: #f5c451; /* near the limit */
+  --gold-soft: rgba(245, 196, 81, 0.14);
 
-  /* lighter purple tappable surface: makes clickable boxes read as clickable */
-  --click: #2f2366;
-  --click-strong: #3f2f86;
+  /* lighter emerald tappable surface: makes clickable boxes read as clickable */
+  --click: #144334;
+  --click-strong: #1b5442;
 
-  --protein: #2ef2c5;
-  --carbs: #ffd23f;
-  --fat: #ff5caa;
+  --protein: #5be3a4;
+  --carbs: #f5c451;
+  --fat: #7fb5a0;
 
-  --danger: #ff6b5e; /* coral — over the limit */
-  --danger-soft: rgba(255, 107, 94, 0.14);
-  --warn: #ffd23f;
-  --warn-soft: rgba(255, 210, 63, 0.14);
-  --info: #b8aee0;
+  --danger: #ff7a5c; /* coral — over the limit */
+  --danger-soft: rgba(255, 122, 92, 0.14);
+  --warn: #f5c451;
+  --warn-soft: rgba(245, 196, 81, 0.14);
+  --info: #7fb5a0;
 
   --radius: 18px;
   --radius-sm: 12px;
-  --shadow: 0 10px 30px rgba(10, 4, 28, 0.55);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
   --nav-h: 66px;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
@@ -321,14 +321,14 @@ h4 {
   background: linear-gradient(90deg, var(--accent-strong), var(--protein));
 }
 .fill.carbs {
-  background: linear-gradient(90deg, #b3821d, var(--carbs));
+  background: linear-gradient(90deg, #b3861f, var(--carbs));
 }
 .fill.fat {
-  background: linear-gradient(90deg, #b03c7a, var(--fat));
+  background: linear-gradient(90deg, #4f8f78, var(--fat));
 }
 
 .macro-bar.over .fill {
-  background: linear-gradient(90deg, #c2463a, var(--danger));
+  background: linear-gradient(90deg, #b05a3a, var(--danger));
 }
 
 /* ---------------------------------------------------------------- meals */
@@ -399,11 +399,11 @@ h4 {
 }
 .chip.c {
   color: var(--carbs);
-  background: rgba(255, 210, 63, 0.14);
+  background: rgba(245, 196, 81, 0.14);
 }
 .chip.f {
   color: var(--fat);
-  background: rgba(255, 92, 170, 0.14);
+  background: rgba(127, 181, 160, 0.16);
 }
 
 .meal-kcal {
@@ -462,7 +462,7 @@ h4 {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1.5px dashed rgba(255, 210, 63, 0.6);
+  border-top: 1.5px dashed rgba(245, 196, 81, 0.6);
   pointer-events: none;
 }
 
@@ -496,7 +496,7 @@ h4 {
 }
 
 .bar.over {
-  background: linear-gradient(180deg, #ff9c8f, var(--danger));
+  background: linear-gradient(180deg, #ff9f86, var(--danger));
 }
 
 .bar.empty {
@@ -566,10 +566,10 @@ h4 {
 }
 
 .btn.primary {
-  background: linear-gradient(180deg, #ff7cbb, var(--primary));
+  background: linear-gradient(180deg, #f7cf6a, var(--primary));
   color: var(--bg);
   border-color: transparent;
-  box-shadow: 0 8px 20px rgba(255, 92, 170, 0.32);
+  box-shadow: 0 8px 20px rgba(245, 196, 81, 0.3);
 }
 
 .btn.ghost {
@@ -646,7 +646,7 @@ textarea.input {
 
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 92, 170, 0.28);
+  box-shadow: 0 0 0 3px rgba(245, 196, 81, 0.25);
 }
 
 textarea.input {
@@ -855,7 +855,7 @@ input[type='range']:focus-visible {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: rgba(21, 13, 48, 0.94);
+  background: rgba(7, 35, 28, 0.94);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   padding-bottom: var(--safe-b);
@@ -930,14 +930,14 @@ input[type='range']:focus-visible {
   line-height: 1.4;
   background: var(--warn-soft);
   color: var(--text);
-  border: 1px solid rgba(255, 210, 63, 0.35);
+  border: 1px solid rgba(245, 196, 81, 0.35);
   margin-bottom: 13px;
 }
 
 .notice.error {
   background: var(--danger-soft);
-  color: #ffbdb6;
-  border-color: rgba(255, 107, 94, 0.3);
+  color: #ffb3a6;
+  border-color: rgba(255, 122, 92, 0.3);
 }
 
 .notice.info {
@@ -1049,7 +1049,7 @@ input[type='range']:focus-visible {
 .pill.active {
   background: var(--accent-soft);
   color: var(--accent);
-  border-color: rgba(46, 242, 197, 0.45);
+  border-color: rgba(91, 227, 164, 0.45);
 }
 
 .edit-row {
@@ -1102,12 +1102,12 @@ input[type='range']:focus-visible {
   width: 58px;
   height: 58px;
   border-radius: 20px;
-  background: linear-gradient(180deg, #ff7cbb, var(--primary));
+  background: linear-gradient(180deg, #f7cf6a, var(--primary));
   color: var(--bg);
   font-size: 26px;
   display: grid;
   place-items: center;
-  box-shadow: 0 12px 26px rgba(255, 92, 170, 0.4);
+  box-shadow: 0 12px 26px rgba(245, 196, 81, 0.35);
   z-index: 40;
   transition: transform 0.08s ease;
 }
@@ -1348,7 +1348,7 @@ input[type='range']:focus-visible {
   gap: 8px;
   align-items: flex-end;
   padding: 10px 16px;
-  background: rgba(21, 13, 48, 0.96);
+  background: rgba(7, 35, 28, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
 }
