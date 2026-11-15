@@ -80,17 +80,11 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
           <div className="ring-stats">
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--accent)' }} /> Energy
+                <i className="dot" style={{ background: 'var(--accent)' }} /> Target
               </span>
               <span className="v num">
                 {totals.kcal.toLocaleString()} / {targets.goalKcal.toLocaleString()}
               </span>
-            </div>
-            <div className="stat-row">
-              <span className="k">
-                <i className="dot" style={{ background: 'rgba(255,255,255,.3)' }} /> Maintenance
-              </span>
-              <span className="v num">{targets.maintenance.toLocaleString()}</span>
             </div>
             <div className="stat-row">
               <span className="k">
@@ -107,7 +101,11 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--accent)' }} /> Daily to stay under
+                <i className="dot" style={{ background: 'var(--accent)' }} />
+                <span>
+                  Allowance
+                  <span className="allowance-note">(to stay on track)</span>
+                </span>
               </span>
               <span
                 className="v num"
@@ -119,6 +117,12 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
               >
                 {week.perDay == null ? '—' : week.perDay.toLocaleString()}
               </span>
+            </div>
+            <div className="stat-row">
+              <span className="k">
+                <i className="dot" style={{ background: 'rgba(255,255,255,.3)' }} /> Maintenance
+              </span>
+              <span className="v num">{targets.maintenance.toLocaleString()}</span>
             </div>
           </div>
         </div>

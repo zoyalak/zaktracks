@@ -263,6 +263,16 @@ h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Faded qualifier under a stat name, e.g. Allowance (to stay on track). */
+.stat-row .allowance-note {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-faint);
+  opacity: 0.85;
+}
+
 .dot {
   width: 8px;
   height: 8px;
