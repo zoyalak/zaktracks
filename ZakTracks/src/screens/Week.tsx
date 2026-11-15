@@ -182,7 +182,7 @@ function WeightTrend({
           x2={w}
           y1={y(target)}
           y2={y(target)}
-          stroke="rgba(255,159,28,.7)"
+          stroke="rgba(255,182,39,.7)"
           strokeDasharray="4 4"
           strokeWidth={1.5}
         />

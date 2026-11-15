@@ -3,39 +3,39 @@
 :root {
   /* Native date/time pickers and scrollbars follow the dark theme. */
   color-scheme: dark;
-  --bg: #101820; /* ink blue */
-  --surface: #1b2733; /* card */
-  --surface-2: #223040;
-  --surface-3: #2a3a4c;
-  --border: #2c3d4f;
-  --border-strong: #3c5169;
-  --text: #f7f3ea;
-  --text-dim: #8e9ba8;
-  --text-faint: #6d7b88;
+  --bg: #2a0a14; /* deep wine */
+  --surface: #3e1222; /* card */
+  --surface-2: #4a1729;
+  --surface-3: #571d33;
+  --border: #5c1f36;
+  --border-strong: #7a2c48;
+  --text: #ffefe0;
+  --text-dim: #c79aa6;
+  --text-faint: #a27a88;
 
-  --accent: #3ddc97; /* on track */
-  --accent-strong: #2fc483;
-  --accent-soft: rgba(61, 220, 151, 0.16);
-  --primary: #ff9f1c; /* tangerine */
-  --primary-soft: rgba(255, 159, 28, 0.18);
-  --beige: #f7f3ea;
+  --accent: #43d98c; /* on track */
+  --accent-strong: #35bd77;
+  --accent-soft: rgba(67, 217, 140, 0.16);
+  --primary: #ffb627; /* saffron */
+  --primary-soft: rgba(255, 182, 39, 0.18);
+  --beige: #ffefe0;
 
-  --gold: #ff9f1c; /* near the limit */
-  --gold-soft: rgba(255, 159, 28, 0.14);
+  --gold: #ffb627; /* near the limit */
+  --gold-soft: rgba(255, 182, 39, 0.14);
 
-  /* lighter ink tappable surface: makes clickable boxes read as clickable */
-  --click: #1f2c3a;
-  --click-strong: #2b3d50;
+  /* lighter wine tappable surface: makes clickable boxes read as clickable */
+  --click: #47162a;
+  --click-strong: #5b1f37;
 
-  --protein: #3ddc97;
-  --carbs: #ff9f1c;
-  --fat: #8e9ba8;
+  --protein: #43d98c;
+  --carbs: #ffb627;
+  --fat: #c79aa6;
 
-  --danger: #ff5c5c; /* over the limit */
-  --danger-soft: rgba(255, 92, 92, 0.14);
-  --warn: #ff9f1c;
-  --warn-soft: rgba(255, 159, 28, 0.14);
-  --info: #8e9ba8;
+  --danger: #ff6a4d; /* hot coral — over the limit */
+  --danger-soft: rgba(255, 106, 77, 0.14);
+  --warn: #ffb627;
+  --warn-soft: rgba(255, 182, 39, 0.14);
+  --info: #c79aa6;
 
   --radius: 18px;
   --radius-sm: 12px;
@@ -321,14 +321,14 @@ h4 {
   background: linear-gradient(90deg, var(--accent-strong), var(--protein));
 }
 .fill.carbs {
-  background: linear-gradient(90deg, #b3711a, var(--carbs));
+  background: linear-gradient(90deg, #b0731a, var(--carbs));
 }
 .fill.fat {
-  background: linear-gradient(90deg, #5d6b78, var(--fat));
+  background: linear-gradient(90deg, #8f5f6b, var(--fat));
 }
 
 .macro-bar.over .fill {
-  background: linear-gradient(90deg, #b04a3a, var(--danger));
+  background: linear-gradient(90deg, #b04a35, var(--danger));
 }
 
 /* ---------------------------------------------------------------- meals */
@@ -399,11 +399,11 @@ h4 {
 }
 .chip.c {
   color: var(--carbs);
-  background: rgba(255, 159, 28, 0.14);
+  background: rgba(255, 182, 39, 0.14);
 }
 .chip.f {
   color: var(--fat);
-  background: rgba(142, 155, 168, 0.16);
+  background: rgba(199, 154, 166, 0.16);
 }
 
 .meal-kcal {
@@ -462,7 +462,7 @@ h4 {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1.5px dashed rgba(255, 159, 28, 0.6);
+  border-top: 1.5px dashed rgba(255, 182, 39, 0.6);
   pointer-events: none;
 }
 
@@ -496,7 +496,7 @@ h4 {
 }
 
 .bar.over {
-  background: linear-gradient(180deg, #ff9d9d, var(--danger));
+  background: linear-gradient(180deg, #ffa08f, var(--danger));
 }
 
 .bar.empty {
@@ -566,10 +566,10 @@ h4 {
 }
 
 .btn.primary {
-  background: linear-gradient(180deg, #ffb347, var(--primary));
+  background: linear-gradient(180deg, #ffc857, var(--primary));
   color: var(--bg);
   border-color: transparent;
-  box-shadow: 0 8px 20px rgba(255, 159, 28, 0.3);
+  box-shadow: 0 8px 20px rgba(255, 182, 39, 0.3);
 }
 
 .btn.ghost {
@@ -646,7 +646,7 @@ textarea.input {
 
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 159, 28, 0.25);
+  box-shadow: 0 0 0 3px rgba(255, 182, 39, 0.25);
 }
 
 textarea.input {
@@ -855,7 +855,7 @@ input[type='range']:focus-visible {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: rgba(16, 24, 32, 0.94);
+  background: rgba(42, 10, 20, 0.94);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   padding-bottom: var(--safe-b);
@@ -930,14 +930,14 @@ input[type='range']:focus-visible {
   line-height: 1.4;
   background: var(--warn-soft);
   color: var(--text);
-  border: 1px solid rgba(255, 159, 28, 0.35);
+  border: 1px solid rgba(255, 182, 39, 0.35);
   margin-bottom: 13px;
 }
 
 .notice.error {
   background: var(--danger-soft);
-  color: #ffc2c2;
-  border-color: rgba(255, 92, 92, 0.3);
+  color: #ffc7b8;
+  border-color: rgba(255, 106, 77, 0.3);
 }
 
 .notice.info {
@@ -1049,7 +1049,7 @@ input[type='range']:focus-visible {
 .pill.active {
   background: var(--accent-soft);
   color: var(--accent);
-  border-color: rgba(61, 220, 151, 0.45);
+  border-color: rgba(67, 217, 140, 0.45);
 }
 
 .edit-row {
@@ -1102,12 +1102,12 @@ input[type='range']:focus-visible {
   width: 58px;
   height: 58px;
   border-radius: 20px;
-  background: linear-gradient(180deg, #ffb347, var(--primary));
+  background: linear-gradient(180deg, #ffc857, var(--primary));
   color: var(--bg);
   font-size: 26px;
   display: grid;
   place-items: center;
-  box-shadow: 0 12px 26px rgba(255, 159, 28, 0.35);
+  box-shadow: 0 12px 26px rgba(255, 182, 39, 0.35);
   z-index: 40;
   transition: transform 0.08s ease;
 }
@@ -1348,7 +1348,7 @@ input[type='range']:focus-visible {
   gap: 8px;
   align-items: flex-end;
   padding: 10px 16px;
-  background: rgba(16, 24, 32, 0.96);
+  background: rgba(42, 10, 20, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
 }
