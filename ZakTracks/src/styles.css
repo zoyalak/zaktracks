@@ -270,7 +270,7 @@ h4 {
   font-variant-numeric: tabular-nums;
 }
 
-/* Faded qualifier under a stat name, e.g. Allowance (to stay on track). */
+/* Faded qualifier under a stat name, e.g. Daily Allowance (to stay on track for the week). */
 .stat-row .allowance-note {
   display: block;
   font-size: 10.5px;

@@ -110,8 +110,8 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
               <span className="k">
                 <i className="dot" style={{ background: 'var(--accent)' }} />
                 <span>
-                  Allowance
-                  <span className="allowance-note">(to stay on track)</span>
+                  Daily Allowance
+                  <span className="allowance-note">(to stay on track for the week)</span>
                 </span>
               </span>
               <span
@@ -133,15 +133,6 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
           </div>
         </div>
-        <p className="tiny muted" style={{ margin: '10px 0 0' }}>
-          {unlogged
-            ? 'Nothing logged for this day, so it stays out of the week average and allowance rather than counting as a zero-calorie day.'
-            : week.avg == null
-              ? 'Week average (Mon–Sun) appears once you log a day.'
-              : week.perDay == null
-              ? `This week's budget is spent, so no daily amount brings the average back under ${targets.goalKcal.toLocaleString()} kcal.`
-              : `Eat up to ${week.perDay.toLocaleString()} kcal a day for the ${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left this week to keep the Mon–Sun average under ${targets.goalKcal.toLocaleString()}.${weekOver ? ` You're ${(week.avg! - targets.goalKcal).toLocaleString()} kcal a day over so far.` : ''}`}
-        </p>
       </div>
 
       <div className="card">
