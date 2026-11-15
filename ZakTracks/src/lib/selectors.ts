@@ -143,13 +143,16 @@ export function weekAverage(
   // Each remaining day adds one more day to the average's denominator, so the
   // week's allowance is the goal times (logged + remaining).
   const remaining = goalKcal * (days + daysLeft) - eaten
+  const spread = remaining > 0 ? Math.floor((remaining - 1) / daysLeft) : null
   return {
     avg: days ? Math.round(eaten / days) : null,
     daysLogged: days,
     daysLeft,
     // One kcal under the even split, so the week lands below the goal rather
-    // than dead on it.
-    perDay: remaining > 0 ? Math.floor((remaining - 1) / daysLeft) : null,
+    // than dead on it, and never above the goal itself: days that were never
+    // logged drop out of the average, which would otherwise hand their budget
+    // to the remaining days and show an "allowance" bigger than the target.
+    perDay: spread == null ? null : Math.min(spread, goalKcal),
     from: monday,
     to: sunday,
   }
