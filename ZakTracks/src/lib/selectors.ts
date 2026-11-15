@@ -98,6 +98,9 @@ export function weekSummary(meals: MealEntry[], targets: Targets, days = 7, endK
   }
 }
 
+/** How far above the daily goal the allowance may go to make up a deficit. */
+const MAKEUP_CAP_KCAL = 300
+
 export interface WeekAverage {
   /** Average daily calories over the days logged this week; null when none. */
   avg: number | null
@@ -149,10 +152,9 @@ export function weekAverage(
     daysLogged: days,
     daysLeft,
     // One kcal under the even split, so the week lands below the goal rather
-    // than dead on it, and never above the goal itself: days that were never
-    // logged drop out of the average, which would otherwise hand their budget
-    // to the remaining days and show an "allowance" bigger than the target.
-    perDay: spread == null ? null : Math.min(spread, goalKcal),
+    // than dead on it. Catching up on a deficit is capped so a big logged
+    // deficit can't turn the last day of the week into an eating contest.
+    perDay: spread == null ? null : Math.min(spread, goalKcal + MAKEUP_CAP_KCAL),
     from: monday,
     to: sunday,
   }
