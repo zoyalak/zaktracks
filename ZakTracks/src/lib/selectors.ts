@@ -101,6 +101,14 @@ export interface WeekAverage {
   /** Average daily calories over the days logged this week; null when none. */
   avg: number | null
   daysLogged: number
+  /** Days from the day being viewed through Sunday, today included. */
+  daysLeft: number
+  /**
+   * Calories a day for those remaining days that would finish the week at the
+   * goal (the average is taken over logged days). Null when the week's budget
+   * is already spent, so no daily amount can pull the average back under.
+   */
+  perDay: number | null
   /** Monday and Sunday keys of the week in question. */
   from: string
   to: string
@@ -109,23 +117,42 @@ export interface WeekAverage {
 /**
  * Average daily intake for the Monday–Sunday week holding `endKey`, counting
  * only days that were logged — a half-finished week shouldn't read as a
- * starvation week.
+ * starvation week — plus the daily allowance that would keep the week's
+ * average at the goal.
  */
-export function weekAverage(meals: MealEntry[], endKey: string = todayKey()): WeekAverage {
-  const monday = shiftKey(endKey, -(keyToDate(endKey).getDay() + 6) % 7)
+export function weekAverage(
+  meals: MealEntry[],
+  goalKcal: number,
+  endKey: string = todayKey(),
+): WeekAverage {
+  const dow = (keyToDate(endKey).getDay() + 6) % 7 // 0 = Monday
+  const monday = shiftKey(endKey, -dow)
   const sunday = shiftKey(monday, 6)
-  let sum = 0
+  let eaten = 0
   let days = 0
   for (let i = 0; i < 7; i++) {
     const key = shiftKey(monday, i)
     if (key > endKey) break
     const kcal = totalsFor(meals, key).kcal
     if (kcal > 0) {
-      sum += kcal
+      eaten += kcal
       days += 1
     }
   }
-  return { avg: days ? Math.round(sum / days) : null, daysLogged: days, from: monday, to: sunday }
+  const daysLeft = 7 - dow
+  // Each remaining day adds one more day to the average's denominator, so the
+  // week's allowance is the goal times (logged + remaining).
+  const remaining = goalKcal * (days + daysLeft) - eaten
+  return {
+    avg: days ? Math.round(eaten / days) : null,
+    daysLogged: days,
+    daysLeft,
+    // One kcal under the even split, so the week lands below the goal rather
+    // than dead on it.
+    perDay: remaining > 0 ? Math.floor((remaining - 1) / daysLeft) : null,
+    from: monday,
+    to: sunday,
+  }
 }
 
 /** Weight entries sorted by date, newest last. */

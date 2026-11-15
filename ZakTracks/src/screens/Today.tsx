@@ -24,8 +24,8 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
   )
   const remaining = targets.goalKcal - totals.kcal
   const isToday = date === todayKey()
-  /** Monday–Sunday average for the week this day belongs to. */
-  const week = weekAverage(meals, date)
+  /** Monday–Sunday average for the week this day belongs to, plus the pace that keeps it at the goal. */
+  const week = weekAverage(meals, targets.goalKcal, date)
   const weekOver = week.avg != null && week.avg > targets.goalKcal
   const latestWeight = settings.weightLog.length
     ? [...settings.weightLog].sort((a, b) => b.date.localeCompare(a.date))[0].kg
@@ -105,14 +105,29 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
                 {week.avg == null ? '—' : week.avg.toLocaleString()}
               </span>
             </div>
+            <div className="stat-row">
+              <span className="k">
+                <i className="dot" style={{ background: 'var(--accent)' }} /> Daily to stay under
+              </span>
+              <span
+                className="v num"
+                title={
+                  week.perDay == null
+                    ? 'This week\'s budget is already spent'
+                    : `A day for the ${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left this week keeps the week's average under ${targets.goalKcal.toLocaleString()} kcal`
+                }
+              >
+                {week.perDay == null ? '—' : week.perDay.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
         <p className="tiny muted" style={{ margin: '10px 0 0' }}>
           {week.avg == null
             ? 'Week average (Mon–Sun) appears once you log a day.'
-            : weekOver
-              ? `Mon–Sun average is ${(week.avg - targets.goalKcal).toLocaleString()} kcal a day over your goal.`
-              : `Mon–Sun average, ${week.daysLogged} ${week.daysLogged === 1 ? 'day' : 'days'} logged so far.`}
+            : week.perDay == null
+              ? `This week's budget is spent, so no daily amount brings the average back under ${targets.goalKcal.toLocaleString()} kcal.`
+              : `Eat up to ${week.perDay.toLocaleString()} kcal a day for the ${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left this week to keep the Mon–Sun average under ${targets.goalKcal.toLocaleString()}.${weekOver ? ` You're ${(week.avg! - targets.goalKcal).toLocaleString()} kcal a day over so far.` : ''}`}
         </p>
       </div>
 
