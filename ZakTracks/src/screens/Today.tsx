@@ -24,6 +24,8 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
   )
   const remaining = targets.goalKcal - totals.kcal
   const isToday = date === todayKey()
+  /** A past day with nothing on it is unknown, not a zero-calorie day. */
+  const unlogged = !isToday && dayMeals.length === 0
   /** Monday–Sunday average for the week this day belongs to, plus the pace that keeps it at the goal. */
   const week = weekAverage(meals, targets.goalKcal, date)
   const weekOver = week.avg != null && week.avg > targets.goalKcal
@@ -70,12 +72,16 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
       <div className="card">
         <div className="ring-wrap">
           <ProgressRing
-            value={rings.eaten}
+            value={unlogged ? 0 : rings.eaten}
             max={rings.goal}
-            color={remaining >= 0 ? 'var(--accent)' : 'var(--danger)'}
+            color={unlogged ? 'var(--surface-3)' : remaining >= 0 ? 'var(--accent)' : 'var(--danger)'}
           >
-            <span className="ring-value num">{Math.abs(remaining).toLocaleString()}</span>
-            <span className="ring-label">{remaining >= 0 ? 'kcal left' : 'kcal over'}</span>
+            <span className="ring-value num">
+              {unlogged ? '—' : Math.abs(remaining).toLocaleString()}
+            </span>
+            <span className="ring-label">
+              {unlogged ? 'not logged' : remaining >= 0 ? 'kcal left' : 'kcal over'}
+            </span>
           </ProgressRing>
           <div className="ring-stats">
             <div className="stat-row">
@@ -83,7 +89,8 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
                 <i className="dot" style={{ background: 'var(--accent)' }} /> Target
               </span>
               <span className="v num">
-                {totals.kcal.toLocaleString()} / {targets.goalKcal.toLocaleString()}
+                {unlogged ? '—' : totals.kcal.toLocaleString()} /{' '}
+                {targets.goalKcal.toLocaleString()}
               </span>
             </div>
             <div className="stat-row">
@@ -127,9 +134,11 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
           </div>
         </div>
         <p className="tiny muted" style={{ margin: '10px 0 0' }}>
-          {week.avg == null
-            ? 'Week average (Mon–Sun) appears once you log a day.'
-            : week.perDay == null
+          {unlogged
+            ? 'Nothing logged for this day, so it stays out of the week average and allowance rather than counting as a zero-calorie day.'
+            : week.avg == null
+              ? 'Week average (Mon–Sun) appears once you log a day.'
+              : week.perDay == null
               ? `This week's budget is spent, so no daily amount brings the average back under ${targets.goalKcal.toLocaleString()} kcal.`
               : `Eat up to ${week.perDay.toLocaleString()} kcal a day for the ${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left this week to keep the Mon–Sun average under ${targets.goalKcal.toLocaleString()}.${weekOver ? ` You're ${(week.avg! - targets.goalKcal).toLocaleString()} kcal a day over so far.` : ''}`}
         </p>
