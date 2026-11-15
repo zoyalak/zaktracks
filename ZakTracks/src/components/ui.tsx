@@ -24,7 +24,7 @@ export function CloverLogo({
     >
       {/* five beige heart-shaped leaves radiating from the centre */}
       {[0, 72, 144, 216, 288].map((deg) => (
-        <g key={deg} transform={`rotate(${deg} 32 32)`} fill="#FFF0E0">
+        <g key={deg} transform={`rotate(${deg} 32 32)`} fill="#2A0A14">
           {/* two round lobes + a tapering wedge: an obcordate clover leaflet */}
           <circle cx="26" cy="11.5" r="5.6" />
           <circle cx="38" cy="11.5" r="5.6" />
@@ -32,7 +32,7 @@ export function CloverLogo({
         </g>
       ))}
       {/* small centre where the five leaf tips meet */}
-      <circle cx="32" cy="32" r="3.6" fill="#FFF0E0" />
+      <circle cx="32" cy="32" r="3.6" fill="#2A0A14" />
     </svg>
   )
 }
@@ -209,7 +209,7 @@ export function ProgressRing({
   size = 132,
   stroke = 13,
   color = 'var(--accent)',
-  track = 'rgba(255,255,255,0.08)',
+  track = 'rgba(42,10,20,0.10)',
   children,
 }: {
   value: number
