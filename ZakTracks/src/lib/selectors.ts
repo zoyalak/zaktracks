@@ -102,7 +102,11 @@ export function weekSummary(meals: MealEntry[], targets: Targets, days = 7, endK
 const MAKEUP_CAP_KCAL = 300
 
 export interface WeekAverage {
-  /** Average daily calories over the days logged this week; null when none. */
+  /**
+   * Average daily calories over the days logged earlier this week. The day
+   * being viewed is not counted — it isn't finished yet — so it only enters
+   * the average once it has ended. Null when no earlier day was logged.
+   */
   avg: number | null
   daysLogged: number
   /** Days from the day being viewed through Sunday, today included. */
@@ -120,9 +124,9 @@ export interface WeekAverage {
 
 /**
  * Average daily intake for the Monday–Sunday week holding `endKey`, counting
- * only days that were logged — a half-finished week shouldn't read as a
- * starvation week — plus the daily allowance that would keep the week's
- * average at the goal.
+ * only days before `endKey` that were logged — a day still in progress isn't
+ * averaged, and a half-finished week shouldn't read as a starvation week —
+ * plus the daily allowance that would keep the week's average at the goal.
  */
 export function weekAverage(
   meals: MealEntry[],
@@ -136,7 +140,9 @@ export function weekAverage(
   let days = 0
   for (let i = 0; i < 7; i++) {
     const key = shiftKey(monday, i)
-    if (key > endKey) break
+    // The day being viewed is still in progress: it counts as one of the days
+    // left to fill, not as a day already averaged.
+    if (key >= endKey) break
     // Days without a log are left out entirely: they are unknown, not zero.
     if (mealsOnDate(meals, key).length === 0) continue
     eaten += totalsFor(meals, key).kcal
