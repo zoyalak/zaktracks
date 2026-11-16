@@ -12,7 +12,7 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const endRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   /** Live snapshot of today's numbers, sent with every message. */
   const snapshot = useMemo(() => {
@@ -47,8 +47,11 @@ export default function Chat() {
     return { context: lines.join('\n'), left, proteinLeft, carbsLeft, fatLeft }
   }, [profile, meals])
 
+  // Scroll the message list itself — scrollIntoView would also scroll the
+  // window, which drags the header and tab bar around on mobile.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' })
+    const list = listRef.current
+    if (list) list.scrollTop = list.scrollHeight
   }, [messages, busy])
 
   const send = async () => {
@@ -95,7 +98,7 @@ export default function Chat() {
         </div>
       </div>
 
-      <div className="chat-list">
+      <div className="chat-list" ref={listRef}>
         {messages.length === 0 && !busy && (
           <div className="card">
             <div className="empty">
@@ -113,7 +116,6 @@ export default function Chat() {
           </div>
         ))}
         {busy && <div className="msg bot">Thinking…</div>}
-        <div ref={endRef} />
       </div>
 
       {error && <Notice type="error">{error}</Notice>}

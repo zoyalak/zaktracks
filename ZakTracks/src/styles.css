@@ -1321,6 +1321,24 @@ input[type='range']:focus-visible {
 
 /* ------------------------------------------------------------------ chat */
 
+/* Chat is a fixed-height column so the page never scrolls: the sticky header
+   and the bottom tabs stay put while only the message list moves. */
+.app.chat-mode {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: calc(var(--nav-h) + var(--safe-b));
+}
+
+.app.chat-mode > .chat-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .chat-list {
   display: flex;
   flex-direction: column;

@@ -82,7 +82,8 @@ export default function App() {
 
   return (
     <>
-      <div className="app">
+      {/* Chat keeps its own scroll region so the page itself never scrolls. */}
+      <div className={tab === 'chat' ? 'app chat-mode' : 'app'}>
 
         <div className="brandbar">
           <CloverLogo
