@@ -1325,10 +1325,18 @@ input[type='range']:focus-visible {
    and the bottom tabs stay put while only the message list moves. */
 .app.chat-mode {
   height: 100dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding-bottom: calc(var(--nav-h) + var(--safe-b));
+}
+
+/* Header, summary card and input bar keep their height: only the message
+   list gives way, so a short viewport can never squeeze their text into the
+   box below. */
+.app.chat-mode > * {
+  flex: 0 0 auto;
 }
 
 .app.chat-mode > .chat-list {
