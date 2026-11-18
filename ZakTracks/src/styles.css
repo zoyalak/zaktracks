@@ -1328,7 +1328,11 @@ input[type='range']:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* `clip`, not `hidden`: a hidden box is still scrollable, and mobile
+     browsers scroll it to reveal the focused message field — which slid the
+     summary card up under the header. Clip cannot be scrolled at all. */
   overflow: hidden;
+  overflow: clip;
   padding-bottom: calc(var(--nav-h) + var(--safe-b));
 }
 
@@ -1337,6 +1341,13 @@ input[type='range']:focus-visible {
    box below. */
 .app.chat-mode > * {
   flex: 0 0 auto;
+}
+
+/* Nothing scrolls past the header here, so it doesn't need to stick — and a
+   static header can't end up drawn over the summary card on browsers without
+   `overflow: clip`. */
+.app.chat-mode > .topbar {
+  position: static;
 }
 
 .app.chat-mode > .chat-list {
