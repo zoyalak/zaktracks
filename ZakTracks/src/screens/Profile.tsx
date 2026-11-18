@@ -498,8 +498,8 @@ export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null
         </div>
         {health && !health.hasKey && (
           <Notice type="info">
-            Photo and label analysis run through Nemotron 3.5 Super VL (free, via OpenRouter),
-            with Groq's Qwen3.8 27B as the fallback — both keyed on the server so they never
+            Photo and label analysis run through Groq's Qwen3.8 27B, with Nemotron 3.5
+            Super VL (free, via OpenRouter) as the fallback — both keyed on the server so they never
             reach your phone. Add the keys, then redeploy:
             <br />
             <br />
