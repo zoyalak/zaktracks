@@ -261,9 +261,52 @@ export default function AddMealSheet({
     fat: picked.food.fat * previewFactor,
   }) : null
 
+  // Which day this meal belongs to — a meal remembered after midnight can
+  // still land on the day it was eaten.
+  const dateRow = (
+    <>
+      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+        <input
+          className="input grow"
+          type="date"
+          aria-label="Day this meal was eaten"
+          max={todayKey()}
+          value={day}
+          onChange={(e) => e.target.value && setDayPick(e.target.value)}
+        />
+        <input
+          className="input"
+          type="time"
+          aria-label="Time this meal was eaten"
+          value={time}
+          onChange={(e) => e.target.value && setTimePick(e.target.value)}
+          style={{ width: 116 }}
+        />
+      </div>
+      <div className="row" style={{ gap: 8, marginBottom: 14 }}>
+        <button
+          className={`btn small${day === todayKey() ? ' primary' : ' ghost'}`}
+          onClick={() => setDayPick(todayKey())}
+        >
+          Today
+        </button>
+        <button
+          className={`btn small${day === yesterdayKey ? ' primary' : ' ghost'}`}
+          onClick={() => setDayPick(yesterdayKey)}
+        >
+          Yesterday
+        </button>
+        <span className="tiny grow" style={{ textAlign: 'right' }}>
+          {dayLabel}
+        </span>
+      </div>
+    </>
+  )
+
   return (
     <Sheet
       open={open}
+      anchorTop={mode === 'pick'}
       onClose={onClose}
       title={mode === 'menu' ? 'Add a meal' : mode === 'photo' ? 'Photo of your meal' : mode === 'describe' ? 'Describe your meal' : 'Pick your foods'}
       sub={
@@ -302,43 +345,9 @@ export default function AddMealSheet({
 
       {error && <Notice type={hasKey || error.length < 90 ? 'error' : 'warn'}>{error}</Notice>}
 
-      {/* Which day this meal belongs to — a meal remembered after midnight
-          can still land on the day it was eaten. */}
-      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-        <input
-          className="input grow"
-          type="date"
-          aria-label="Day this meal was eaten"
-          max={todayKey()}
-          value={day}
-          onChange={(e) => e.target.value && setDayPick(e.target.value)}
-        />
-        <input
-          className="input"
-          type="time"
-          aria-label="Time this meal was eaten"
-          value={time}
-          onChange={(e) => e.target.value && setTimePick(e.target.value)}
-          style={{ width: 116 }}
-        />
-      </div>
-      <div className="row" style={{ gap: 8, marginBottom: 14 }}>
-        <button
-          className={`btn small${day === todayKey() ? ' primary' : ' ghost'}`}
-          onClick={() => setDayPick(todayKey())}
-        >
-          Today
-        </button>
-        <button
-          className={`btn small${day === yesterdayKey ? ' primary' : ' ghost'}`}
-          onClick={() => setDayPick(yesterdayKey)}
-        >
-          Yesterday
-        </button>
-        <span className="tiny grow" style={{ textAlign: 'right' }}>
-          {dayLabel}
-        </span>
-      </div>
+      {/* While picking foods this row sits below the search, so the search
+          field and its results are the first thing on screen. */}
+      {mode !== 'pick' && dateRow}
 
       {busy ? (
         <Loading label={busyLabel} />
@@ -575,6 +584,8 @@ export default function AddMealSheet({
                   </button>
                 </>
               )}
+              {dateRow}
+
               <button className="btn ghost mt" onClick={() => setMode('menu')}>
                 Back
               </button>

@@ -44,12 +44,16 @@ export function Sheet({
   onClose,
   title,
   sub,
+  /** Hang the sheet from the top of the screen instead of the bottom, so a
+   *  field the keyboard would cover is visible while typing. */
+  anchorTop = false,
   children,
 }: {
   open: boolean
   onClose: () => void
   title?: string
   sub?: string
+  anchorTop?: boolean
   children: ReactNode
 }) {
   useEffect(() => {
@@ -70,7 +74,12 @@ export function Sheet({
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        className={anchorTop ? 'sheet sheet-top' : 'sheet'}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <div className="sheet-handle" />
         {title && <h2>{title}</h2>}
         {sub && <p className="sheet-sub">{sub}</p>}

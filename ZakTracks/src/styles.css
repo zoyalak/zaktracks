@@ -822,6 +822,28 @@ input[type='range']:focus-visible {
   animation: slide-up 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Top-anchored variant: used while searching foods, where the field and its
+   results must stay above the keyboard rather than sit at the bottom. */
+.sheet.sheet-top {
+  top: 0;
+  bottom: auto;
+  max-height: 100dvh;
+  border-radius: 0 0 22px 22px;
+  border-top: none;
+  border-bottom: 1px solid var(--border);
+  padding-top: calc(var(--safe-t) + 10px);
+  animation: slide-down 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 .sheet-handle {
   width: 38px;
   height: 4px;
