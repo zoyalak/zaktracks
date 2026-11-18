@@ -133,6 +133,9 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
           </div>
         </div>
+        <p className="tiny muted" style={{ margin: '10px 0 0', opacity: 0.6 }}>
+          *Week = Monday to Sunday
+        </p>
       </div>
 
       <div className="card">
