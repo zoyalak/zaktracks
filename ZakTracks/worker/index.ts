@@ -34,11 +34,11 @@ interface Env {
   ASSETS?: { fetch(request: Request): Promise<Response> }
 }
 
-// Primary is Groq's Qwen3.8 27B; when that leg fails (rate limit, capacity,
-// outage) the loop below falls through to the free Nemotron VL endpoint on
-// OpenRouter. AI_MODEL / AI_FALLBACK_MODEL override either slot.
-const PRIMARY_MODEL = 'qwen/qwen3.8-27b'
-const FALLBACK_MODEL = 'nvidia/nemotron-3.5-super-vl:free'
+// Primary is the Nemotron VL endpoint on OpenRouter; when that leg fails (rate
+// limit, capacity, outage) the loop below falls through to Qwen3.8 27B on
+// Groq. AI_MODEL / AI_FALLBACK_MODEL override either slot.
+const PRIMARY_MODEL = 'nvidia/nemotron-3.5-super-vl:free'
+const FALLBACK_MODEL = 'qwen/qwen3.8-27b'
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 const json = (body: unknown, status = 200): Response =>
@@ -411,23 +411,23 @@ async function callModel(
     throw err
   }
 
-  // The chain: Groq's Qwen3.8 27B first, then the free Nemotron endpoint on
-  // OpenRouter when the primary leg fails.
+  // The chain: the Nemotron VL endpoint on OpenRouter first, then Qwen3.8 27B
+  // on Groq when the primary leg fails.
   const chain: { label: string; provider: string; run: () => Promise<AttemptResult> }[] = []
-  if (groqKey) {
-    const model = env.AI_MODEL || PRIMARY_MODEL
-    chain.push({
-      label: model,
-      provider: 'Groq',
-      run: () => callGroq(groqKey, model, parts, schema, prompt),
-    })
-  }
   if (orKey) {
-    const model = env.AI_FALLBACK_MODEL || FALLBACK_MODEL
+    const model = env.AI_MODEL || PRIMARY_MODEL
     chain.push({
       label: model,
       provider: 'OpenRouter',
       run: () => callOpenRouter(orKey, model, parts, schema, prompt),
+    })
+  }
+  if (groqKey) {
+    const model = env.AI_FALLBACK_MODEL || FALLBACK_MODEL
+    chain.push({
+      label: model,
+      provider: 'Groq',
+      run: () => callGroq(groqKey, model, parts, schema, prompt),
     })
   }
 
