@@ -43,10 +43,6 @@
   --warn-soft: rgba(255, 138, 61, 0.14);
   --info: #e0cdb8;
 
-  /* A step up from --bg, used for the stat dots in the main box. */
-  --dot: #531a2e;
-
-
   --radius: 18px;
   --radius-sm: 12px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);

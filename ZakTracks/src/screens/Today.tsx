@@ -86,7 +86,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
           <div className="ring-stats">
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--dot)' }} /> Target
+                <i className="dot" style={{ background: 'var(--text-dim)' }} /> Target
               </span>
               <span className="v num">
                 {unlogged ? '—' : totals.kcal.toLocaleString()} /{' '}
@@ -95,7 +95,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--dot)' }} />{' '}
+                <i className="dot" style={{ background: 'var(--text-dim)' }} />{' '}
                 Week avg
               </span>
               <span
@@ -108,7 +108,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
             </div>
             <div className="stat-row">
               <span className="k">
-                <i className="dot" style={{ background: 'var(--dot)' }} />
+                <i className="dot" style={{ background: 'var(--text-dim)' }} />
                 <span>
                   Daily Allowance
                   <span className="allowance-note">(to stay on track for the week)</span>
