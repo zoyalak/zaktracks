@@ -6,7 +6,7 @@
  * it. Static assets keep their hashed filenames, so they are cached
  * aggressively; API calls are never cached.
  */
-const CACHE = 'zaktracks-shell-v4'
+const CACHE = 'zaktracks-shell-v5'
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg']
 
 self.addEventListener('install', (event) => {
