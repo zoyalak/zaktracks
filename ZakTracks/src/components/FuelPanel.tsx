@@ -7,6 +7,8 @@ import {
   FUEL_BASE_FACTOR,
   MAX_DEFICIT_KCAL,
   MAX_DEFICIT_SHARE,
+  OVER_SHARE,
+  OVER_THRESHOLD_KCAL,
   fuelBaseKcal,
   fuelDeficitLimit,
   type FuelCarry,
@@ -92,6 +94,19 @@ export function FuelReceiptCard({
           </div>
         )}
 
+        {carry.kcal < 0 && (
+          <div className="receipt-row">
+            <span className="rk">
+              <b>Over</b>
+              <span className="tiny muted">
+                {Math.round(OVER_SHARE * 100)}% of {fromLabel(carry.from)}'s{' '}
+                {carry.overKcal.toLocaleString()} over goal
+              </span>
+            </span>
+            <span className="rv num neg">{carry.kcal.toLocaleString()}</span>
+          </div>
+        )}
+
         <div className="receipt-row">
           <span className="rk">
             <b>Deficit</b>
@@ -108,7 +123,11 @@ export function FuelReceiptCard({
           <span className="rk">
             <b>Goal</b>
             <span className="tiny muted">
-              {carry.kcal > 0 ? 'base + movement + leftover − deficit' : 'base + movement − deficit'}
+              {carry.kcal > 0
+                ? 'base + movement + leftover − deficit'
+                : carry.kcal < 0
+                  ? 'base + movement − over − deficit'
+                  : 'base + movement − deficit'}
             </span>
           </span>
           <span className="num" style={{ fontSize: 20, fontWeight: 700 }}>
@@ -339,7 +358,8 @@ export function FuelSetupCard({ onSave }: { onSave: (plan: FuelPlan) => void | P
       <p className="tiny muted" style={{ marginTop: 0 }}>
         Your body stats give the base burn, and your deficit is what you eat below it. Every step
         and workout you log is added on top, and half of whatever you leave uneaten rolls into the
-        next day.
+        next day. Go {OVER_THRESHOLD_KCAL}+ kcal over and half of the overage comes off the next
+        day's goal instead.
       </p>
       <FuelSetupForm units={profile.units} initial={null} onSave={onSave} />
     </div>

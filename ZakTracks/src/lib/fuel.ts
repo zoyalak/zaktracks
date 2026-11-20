@@ -33,6 +33,15 @@ export const CARRY_SHARE = 0.5
  */
 export const CARRY_THRESHOLD_KCAL = 100
 
+/** Share of an overage that is taken off the next day's goal. */
+export const OVER_SHARE = 0.5
+
+/** A day has to go at least this far over target before anything is clawed back. */
+export const OVER_THRESHOLD_KCAL = 300
+
+/** How many days back the chain of carries is followed. */
+const CARRY_LOOKBACK_DAYS = 60
+
 /** The lowest daily intake the app will ever hand out. */
 export const fuelFloorKcal = (sex: Sex): number =>
   sex === 'male' ? 1500 : sex === 'female' ? 1200 : 1350
@@ -92,7 +101,8 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
   const applied = Math.min(Math.max(0, requestedDeficit), deficitLimit)
   const floorKcal = fuelFloorKcal(plan.sex)
 
-  const carry = Math.max(0, Math.round(carryKcal))
+  // Negative when the day before went over: it takes calories off this goal.
+  const carry = Math.round(carryKcal)
   const raw = baseKcal + burnedKcal + carry - applied
   const goalKcal = Math.max(floorKcal, Math.round(raw))
   // The floor can eat into the deficit: report what actually came off.
@@ -139,26 +149,70 @@ export function fuelMacros(plan: FuelPlan, goalKcal: number): Macro {
   return { kcal, protein, carbs, fat }
 }
 
-/** What an uneaten day hands to the next one. */
+/** What one day hands to the next: an uneaten day tops up, an over day cuts. */
 export interface FuelCarry {
-  /** Calories added to this day's goal (half the shortfall). */
+  /** Change to this day's goal: + for a leftover, - for an overage penalty. */
   kcal: number
   /** The day the carry comes from. */
   from: string
-  /** That day's goal. */
+  /** That day's goal, including whatever that day was handed itself. */
   goalKcal: number
   eatenKcal: number
   /** Goal minus eaten, never below zero. */
   shortfallKcal: number
+  /** Eaten minus goal, never below zero. */
+  overKcal: number
+  /** The cut taken off this day for going over (a negative number). */
+  penaltyKcal: number
   /** False when that day had no log at all - unknown, not a full shortfall. */
   logged: boolean
 }
 
 /**
- * Half of what was left uneaten the day before moves into this day's goal, but
- * only when that day finished more than 100 kcal under target. A day within
- * 100 kcal counts as done, and a day with nothing logged hands nothing over:
- * it is unknown, not a fast.
+ * Work out what one finished day hands over: 300 kcal or more over target and
+ * half of the overage comes off the next day, otherwise anything more than 100
+ * kcal left uneaten adds half of it on. A day within 100 kcal counts as done,
+ * and a day with nothing logged hands nothing over: it is unknown, not a fast.
+ */
+function carryBetween(from: string, goalKcal: number, eatenKcal: number | null): FuelCarry {
+  if (eatenKcal == null) {
+    return {
+      kcal: 0,
+      from,
+      goalKcal,
+      eatenKcal: 0,
+      shortfallKcal: 0,
+      overKcal: 0,
+      penaltyKcal: 0,
+      logged: false,
+    }
+  }
+
+  const diff = eatenKcal - goalKcal
+  const overKcal = Math.max(0, diff)
+  const shortfallKcal = Math.max(0, -diff)
+  const penaltyKcal = overKcal >= OVER_THRESHOLD_KCAL ? -Math.round(overKcal * OVER_SHARE) : 0
+  const leftoverKcal =
+    penaltyKcal === 0 && shortfallKcal > CARRY_THRESHOLD_KCAL
+      ? Math.round(shortfallKcal * CARRY_SHARE)
+      : 0
+
+  return {
+    kcal: leftoverKcal + penaltyKcal,
+    from,
+    goalKcal,
+    eatenKcal,
+    shortfallKcal,
+    overKcal,
+    penaltyKcal,
+    logged: true,
+  }
+}
+
+/**
+ * What the day before `date` hands over. The goal it is measured against is
+ * that day's own goal with its own carry, so eating exactly to a topped-up
+ * goal is neither under nor over.
  */
 export function fuelCarryFor(
   plan: FuelPlan,
@@ -166,21 +220,40 @@ export function fuelCarryFor(
   date: string,
   eatenOn: (date: string) => number | null,
 ): FuelCarry {
+  return resolveCarry(plan, days, date, eatenOn, new Map(), 0)
+}
+
+function resolveCarry(
+  plan: FuelPlan,
+  days: FuelDay[] | undefined,
+  date: string,
+  eatenOn: (date: string) => number | null,
+  memo: Map<string, FuelCarry>,
+  depth: number,
+): FuelCarry {
+  const cached = memo.get(date)
+  if (cached) return cached
+
   const from = shiftKey(date, -1)
-  const prevGoal = fuelReceipt(plan, days?.find((d) => d.date === from)).goalKcal
   const eatenKcal = eatenOn(from)
-  if (eatenKcal == null) {
-    return { kcal: 0, from, goalKcal: prevGoal, eatenKcal: 0, shortfallKcal: 0, logged: false }
-  }
-  const shortfallKcal = Math.max(0, prevGoal - eatenKcal)
-  return {
-    kcal: shortfallKcal > CARRY_THRESHOLD_KCAL ? Math.round(shortfallKcal * CARRY_SHARE) : 0,
-    from,
-    goalKcal: prevGoal,
-    eatenKcal,
-    shortfallKcal,
-    logged: true,
-  }
+  const prevDay = days?.find((d) => d.date === from)
+
+  // An unlogged day hands nothing over, so the chain stops there.
+  const carry =
+    eatenKcal == null
+      ? carryBetween(from, fuelReceipt(plan, prevDay).goalKcal, null)
+      : carryBetween(
+          from,
+          fuelReceipt(
+            plan,
+            prevDay,
+            depth < CARRY_LOOKBACK_DAYS ? resolveCarry(plan, days, from, eatenOn, memo, depth + 1).kcal : 0,
+          ).goalKcal,
+          eatenKcal,
+        )
+
+  memo.set(date, carry)
+  return carry
 }
 
 /** The goal a given day's food intake is measured against. */
