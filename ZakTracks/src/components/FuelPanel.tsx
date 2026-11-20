@@ -201,12 +201,10 @@ export function FuelActivityCard({
   plan,
   date,
   day,
-  title = 'Activity',
 }: {
   plan: FuelPlan
   date: string
   day: FuelDay | null
-  title?: string
 }) {
   const { saveFuelDay } = useApp()
 
@@ -218,15 +216,24 @@ export function FuelActivityCard({
       ...patch,
     })
 
+  // Steps and workouts get a card each: sharing one made the Estimate button
+  // read as if it belonged to the step count above it.
   return (
-    <div className="card">
-      <div className="card-title">
-        <h2>{title}</h2>
-        <span className="hint">adds to this day's goal</span>
+    <>
+      <div className="card">
+        <div className="card-title">
+          <h2>Steps</h2>
+        </div>
+        <StepsField plan={plan} day={day} commit={commit} />
       </div>
-      <StepsField plan={plan} day={day} commit={commit} />
-      <WorkoutsField plan={plan} day={day} commit={commit} />
-    </div>
+      <div className="card">
+        <div className="card-title">
+          <h2>Workouts</h2>
+          <span className="hint">estimated, then added</span>
+        </div>
+        <WorkoutsField plan={plan} day={day} commit={commit} />
+      </div>
+    </>
   )
 }
 
@@ -259,20 +266,22 @@ function StepsField({
   const stepsKcal = fuelStepsKcal(plan, Math.max(0, Math.round(num(text))))
 
   return (
-    <NumberField
-      label="Steps"
-      aside={
-        <span className={stepsKcal > 0 ? 'tiny num pos' : 'tiny num'}>
+    <>
+      <NumberField
+        unit="steps"
+        value={text}
+        onChange={setText}
+        step={100}
+        min={0}
+        placeholder="e.g. 8500"
+      />
+      <div className="tiny" style={{ marginTop: -6, marginBottom: 4 }}>
+        <span className={stepsKcal > 0 ? 'num pos' : 'num'}>
           {stepsKcal > 0 ? `+${stepsKcal.toLocaleString()} kcal` : '0 kcal'}
-        </span>
-      }
-      unit="steps"
-      value={text}
-      onChange={setText}
-      step={100}
-      min={0}
-      placeholder="e.g. 8500"
-    />
+        </span>{' '}
+        <span className="muted">added to this day's goal</span>
+      </div>
+    </>
   )
 }
 
@@ -329,7 +338,7 @@ function WorkoutsField({
 
   return (
     <>
-      <Field label="Workout" hint="Describe it, then estimate or type the calories yourself.">
+      <Field label="Describe it" hint="Then estimate the calories, or type them yourself.">
         <div className="row" style={{ gap: 8 }}>
           <input
             className="input"

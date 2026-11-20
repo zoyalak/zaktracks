@@ -43,7 +43,7 @@ export default function Activity() {
         <FuelSetupCard onSave={saveFuel} />
       ) : (
         <>
-          <FuelActivityCard plan={plan} date={date} day={day} title="Activity" />
+          <FuelActivityCard plan={plan} date={date} day={day} />
           <FuelReceiptCard receipt={fuel.receipt} carry={fuel.carry} />
           <FuelSetupSheet
             open={setupOpen}
