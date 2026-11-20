@@ -9,6 +9,7 @@
  */
 
 import { bmr } from './nutrition'
+import { shiftKey } from './date'
 import type { FuelDay, FuelPlan, FuelWorkout, Macro, Sex } from './types'
 
 /** Fixed multiplier on BMR - no activity level is picked by the user. */
@@ -22,6 +23,9 @@ export const MAX_DEFICIT_KCAL = 1000
 
 /** ...and a sensible ceiling relative to the base goal (30%). */
 export const MAX_DEFICIT_SHARE = 0.3
+
+/** Share of an uneaten day that rolls into the next day's goal. */
+export const CARRY_SHARE = 0.5
 
 /** The lowest daily intake the app will ever hand out. */
 export const fuelFloorKcal = (sex: Sex): number =>
@@ -54,6 +58,8 @@ export interface FuelReceipt {
   requestedDeficit: number
   /** What was actually taken off (less when the floor got in the way). */
   deficitKcal: number
+  /** Calories carried in from the day before. */
+  carryKcal: number
   deficitLimit: number
   /** True when the requested deficit was cut down to the safe limit. */
   deficitClamped: boolean
@@ -63,8 +69,11 @@ export interface FuelReceipt {
   goalKcal: number
 }
 
-/** Itemise one day's goal from the plan and that day's activity. */
-export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null): FuelReceipt {
+/**
+ * Itemise one day's goal from the plan, that day's activity and whatever the
+ * day before left on the table.
+ */
+export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0): FuelReceipt {
   const baseKcal = fuelBaseKcal(plan)
   const steps = Math.max(0, Math.round(day?.steps ?? 0))
   const stepsKcal = fuelStepsKcal(plan, steps)
@@ -77,10 +86,11 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null): FuelReceipt {
   const applied = Math.min(Math.max(0, requestedDeficit), deficitLimit)
   const floorKcal = fuelFloorKcal(plan.sex)
 
-  const raw = baseKcal + burnedKcal - applied
+  const carry = Math.max(0, Math.round(carryKcal))
+  const raw = baseKcal + burnedKcal + carry - applied
   const goalKcal = Math.max(floorKcal, Math.round(raw))
   // The floor can eat into the deficit: report what actually came off.
-  const deficitKcal = Math.max(0, baseKcal + burnedKcal - goalKcal)
+  const deficitKcal = Math.max(0, baseKcal + burnedKcal + carry - goalKcal)
 
   return {
     baseKcal,
@@ -91,6 +101,7 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null): FuelReceipt {
     burnedKcal,
     requestedDeficit,
     deficitKcal,
+    carryKcal: carry,
     deficitLimit,
     deficitClamped: requestedDeficit > deficitLimit,
     floorKcal,
@@ -122,10 +133,71 @@ export function fuelMacros(plan: FuelPlan, goalKcal: number): Macro {
   return { kcal, protein, carbs, fat }
 }
 
+/** What an uneaten day hands to the next one. */
+export interface FuelCarry {
+  /** Calories added to this day's goal (half the shortfall). */
+  kcal: number
+  /** The day the carry comes from. */
+  from: string
+  /** That day's goal. */
+  goalKcal: number
+  eatenKcal: number
+  /** Goal minus eaten, never below zero. */
+  shortfallKcal: number
+  /** False when that day had no log at all - unknown, not a full shortfall. */
+  logged: boolean
+}
+
+/**
+ * Half of what was left uneaten the day before moves into this day's goal. A
+ * day with nothing logged hands nothing over: it is unknown, not a fast.
+ */
+export function fuelCarryFor(
+  plan: FuelPlan,
+  days: FuelDay[] | undefined,
+  date: string,
+  eatenOn: (date: string) => number | null,
+): FuelCarry {
+  const from = shiftKey(date, -1)
+  const prevGoal = fuelReceipt(plan, days?.find((d) => d.date === from)).goalKcal
+  const eatenKcal = eatenOn(from)
+  if (eatenKcal == null) {
+    return { kcal: 0, from, goalKcal: prevGoal, eatenKcal: 0, shortfallKcal: 0, logged: false }
+  }
+  const shortfallKcal = Math.max(0, prevGoal - eatenKcal)
+  return {
+    kcal: Math.round(shortfallKcal * CARRY_SHARE),
+    from,
+    goalKcal: prevGoal,
+    eatenKcal,
+    shortfallKcal,
+    logged: true,
+  }
+}
+
 /** The goal a given day's food intake is measured against. */
 export interface FuelGoal {
   goalKcal: number
   macro: Macro
+}
+
+export interface FuelBreakdown {
+  receipt: FuelReceipt
+  carry: FuelCarry
+  macro: Macro
+}
+
+/** Everything one day's target is made of, or null when Fuel isn't set up. */
+export function fuelBreakdown(
+  plan: FuelPlan | null | undefined,
+  days: FuelDay[] | undefined,
+  date: string,
+  eatenOn: (date: string) => number | null,
+): FuelBreakdown | null {
+  if (!plan) return null
+  const carry = fuelCarryFor(plan, days, date, eatenOn)
+  const receipt = fuelReceipt(plan, days?.find((d) => d.date === date), carry.kcal)
+  return { receipt, carry, macro: fuelMacros(plan, receipt.goalKcal) }
 }
 
 /**
@@ -136,8 +208,8 @@ export function fuelGoalFor(
   plan: FuelPlan | null | undefined,
   days: FuelDay[] | undefined,
   date: string,
+  eatenOn: (date: string) => number | null,
 ): FuelGoal | null {
-  if (!plan) return null
-  const receipt = fuelReceipt(plan, days?.find((d) => d.date === date))
-  return { goalKcal: receipt.goalKcal, macro: fuelMacros(plan, receipt.goalKcal) }
+  const breakdown = fuelBreakdown(plan, days, date, eatenOn)
+  return breakdown ? { goalKcal: breakdown.receipt.goalKcal, macro: breakdown.macro } : null
 }

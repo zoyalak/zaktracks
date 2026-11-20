@@ -65,6 +65,15 @@ export const mealsOnDate = (meals: MealEntry[], dateKey: string): MealEntry[] =>
 export const totalsFor = (meals: MealEntry[], dateKey: string): Macro =>
   roundMacro(mealsOnDate(meals, dateKey).reduce((acc, m) => addMacro(acc, mealToMacro(m)), emptyMacro()))
 
+/**
+ * Calories logged on a day, or null when nothing was logged at all - an
+ * unknown day, which is not the same as a day with a zero-calorie intake.
+ */
+export function eatenKcalOn(meals: MealEntry[], dateKey: string): number | null {
+  if (mealsOnDate(meals, dateKey).length === 0) return null
+  return totalsFor(meals, dateKey).kcal
+}
+
 export interface DayStat {
   date: string
   eaten: Macro
@@ -73,13 +82,20 @@ export interface DayStat {
   logged: boolean
 }
 
-export function weekStats(meals: MealEntry[], targets: Targets, days = 7, endKey?: string): DayStat[] {
+export function weekStats(
+  meals: MealEntry[],
+  targets: Targets,
+  days = 7,
+  endKey?: string,
+  /** Per-day goal, for plans whose target changes every day (Fuel). */
+  goalKcalFor?: (date: string) => number,
+): DayStat[] {
   return lastNDays(days, endKey).map((date) => {
     const eaten = totalsFor(meals, date)
     return {
       date,
       eaten,
-      goalKcal: targets.goalKcal,
+      goalKcal: goalKcalFor ? goalKcalFor(date) : targets.goalKcal,
       delta: eaten.kcal - targets.goalKcal,
       // A day counts as logged when it holds a meal, even if its items add up to 0.
       logged: mealsOnDate(meals, date).length > 0,
@@ -97,8 +113,14 @@ export interface WeekSummary {
   avgMacro: Macro
 }
 
-export function weekSummary(meals: MealEntry[], targets: Targets, days = 7, endKey?: string): WeekSummary {
-  const list = weekStats(meals, targets, days, endKey)
+export function weekSummary(
+  meals: MealEntry[],
+  targets: Targets,
+  days = 7,
+  endKey?: string,
+  goalKcalFor?: (date: string) => number,
+): WeekSummary {
+  const list = weekStats(meals, targets, days, endKey, goalKcalFor)
   const logged = list.filter((d) => d.logged)
   const avg = (fn: (d: DayStat) => number): number =>
     logged.length ? Math.round(logged.reduce((s, d) => s + fn(d), 0) / logged.length) : 0
@@ -107,7 +129,7 @@ export function weekSummary(meals: MealEntry[], targets: Targets, days = 7, endK
   return {
     days: list,
     avgEaten: avg((d) => d.eaten.kcal),
-    avgGoal: targets.goalKcal,
+    avgGoal: avg((d) => d.goalKcal),
     totalDelta: logged.reduce((s, d) => s + d.delta, 0),
     daysOnTarget: logged.filter((d) => d.eaten.kcal <= d.goalKcal + 100).length,
     loggedDays: logged.length,

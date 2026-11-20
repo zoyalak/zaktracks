@@ -1,29 +1,27 @@
 import { Fragment, useCallback, useRef, useState } from 'react'
 import { useApp } from './state/AppContext'
 import { todayKey } from './lib/date'
-import { targetsFor } from './lib/selectors'
+import { eatenKcalOn, targetsFor } from './lib/selectors'
 import { fuelGoalFor } from './lib/fuel'
 import AddMealSheet from './components/AddMealSheet'
 import Auth from './components/Auth'
 import Onboarding from './components/Onboarding'
 import Today from './screens/Today'
 import Week from './screens/Week'
-import Fuel from './screens/Fuel'
 import Foods from './screens/Foods'
 import Profile, { type ProfileGuard } from './screens/Profile'
 import { CloverLogo, Sheet } from './components/ui'
 
-type Tab = 'today' | 'week' | 'fuel' | 'foods' | 'profile'
+type Tab = 'today' | 'week' | 'foods' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'today', label: 'Track', icon: '🍽️' },
-  { id: 'fuel', label: 'Fuel', icon: '🔥' },
   { id: 'foods', label: 'Foods', icon: '🛒' },
   { id: 'week', label: 'Logs', icon: '📈' },
 ]
 
 export default function App() {
-  const { ready, profile, user, settings } = useApp()
+  const { ready, profile, user, meals, settings } = useApp()
   const [tab, setTab] = useState<Tab>('today')
   const [pendingTab, setPendingTab] = useState<Tab | null>(null)
   const [adding, setAdding] = useState(false)
@@ -82,7 +80,10 @@ export default function App() {
   // The Fuel tab's goal (base + movement − deficit) is the target everywhere
   // food is measured against one; it falls back to the profile plan until Fuel
   // setup has been done once.
-  const targets = targetsFor(profile, fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey()))
+  const targets = targetsFor(
+    profile,
+    fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey(), (d) => eatenKcalOn(meals, d)),
+  )
 
   return (
     <>
@@ -104,7 +105,6 @@ export default function App() {
         </div>
         {tab === 'today' && <Today date={day} onDate={setDay} />}
         {tab === 'week' && <Week />}
-        {tab === 'fuel' && <Fuel />}
         {tab === 'foods' && <Foods />}
         {tab === 'profile' && <Profile onGuard={onGuard} />}
       </div>
