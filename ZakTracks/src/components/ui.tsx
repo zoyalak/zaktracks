@@ -120,6 +120,7 @@ export function NumberField({
   min,
   max,
   placeholder,
+  aside,
 }: {
   label?: string
   value: string
@@ -129,10 +130,23 @@ export function NumberField({
   min?: number
   max?: number
   placeholder?: string
+  /** Small value shown on the label row, e.g. what the input adds to the goal. */
+  aside?: ReactNode
 }) {
   return (
     <div className="field">
-      {label && <label>{label}</label>}
+      {label && (
+        <label
+          style={
+            aside
+              ? { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }
+              : undefined
+          }
+        >
+          <span>{label}</span>
+          {aside}
+        </label>
+      )}
       <div className="suffix">
         <input
           className="input"

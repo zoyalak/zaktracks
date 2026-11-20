@@ -11,6 +11,7 @@ import {
   OVER_THRESHOLD_KCAL,
   fuelBaseKcal,
   fuelDeficitLimit,
+  fuelStepsKcal,
   type FuelCarry,
   type FuelReceipt,
 } from '../lib/fuel'
@@ -188,16 +189,18 @@ export function FuelActivityCard({
         <h2>{title}</h2>
         <span className="hint">adds to this day's goal</span>
       </div>
-      <StepsField day={day} commit={commit} />
+      <StepsField plan={plan} day={day} commit={commit} />
       <WorkoutsField plan={plan} day={day} commit={commit} />
     </div>
   )
 }
 
 function StepsField({
+  plan,
   day,
   commit,
 }: {
+  plan: FuelPlan
   day: FuelDay | null
   commit: (patch: Partial<FuelDay>) => void
 }) {
@@ -216,9 +219,18 @@ function StepsField({
     return () => clearTimeout(t)
   }, [text, day?.steps, commit])
 
+  // Show what the steps are worth straight away, off the typed number rather
+  // than the saved one, so the figure moves as the user types.
+  const stepsKcal = fuelStepsKcal(plan, Math.max(0, Math.round(num(text))))
+
   return (
     <NumberField
       label="Steps"
+      aside={
+        <span className={stepsKcal > 0 ? 'tiny num pos' : 'tiny num'}>
+          {stepsKcal > 0 ? `+${stepsKcal.toLocaleString()} kcal` : '0 kcal'}
+        </span>
+      }
       unit="steps"
       value={text}
       onChange={setText}
