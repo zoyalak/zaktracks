@@ -554,11 +554,14 @@ export default function AddMealSheet({
               )}
 
               {cart.length > 0 && (
-                <>
-                  <div className="divider" />
+                // The whole basket is one card, so its rows, total and the
+                // Review button share the inset of the food boxes above.
+                <div className="card tight" style={{ marginTop: 14 }}>
                   <div className="card-title">
                     <h2>In this meal</h2>
-                    <span className="hint">{cart.length} items</span>
+                    <span className="hint">
+                      {cart.length} {cart.length === 1 ? 'item' : 'items'}
+                    </span>
                   </div>
                   {cart.map((item, i) => (
                     <div className="row between" key={i} style={{ padding: '6px 0', fontSize: 13.5 }}>
@@ -576,7 +579,7 @@ export default function AddMealSheet({
                       </button>
                     </div>
                   ))}
-                  <div className="total-strip" style={{ marginTop: 10 }}>
+                  <div className="total-strip" style={{ margin: '10px 0 12px' }}>
                     <span className="muted">Total</span>
                     <b className="num">
                       {cartTotals.kcal} kcal · {cartTotals.protein}P · {cartTotals.carbs}C · {cartTotals.fat}F
@@ -585,9 +588,13 @@ export default function AddMealSheet({
                   <button className="btn primary" onClick={saveCart}>
                     Review meal
                   </button>
-                </>
+                </div>
               )}
-              {dateRow}
+              {/* Same card shape as the basket, so the sheet reads as a stack
+                  of matching boxes rather than loose rows. */}
+              <div className="card tight" style={{ marginTop: 12 }}>
+                {dateRow}
+              </div>
 
               <button className="btn ghost mt" onClick={() => setMode('menu')}>
                 Back
