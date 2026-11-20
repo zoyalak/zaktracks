@@ -4,7 +4,7 @@ import type { ActivityKey, AppData, GoalType, Profile as ProfileType, Sex, UnitS
 import { ACTIVITY, defaultSplit, goalPlan, macroTargets } from '../lib/nutrition'
 import { cmToFtIn, displayWeight, ftInToCm, fromKg, toKg, weightLabel } from '../lib/units'
 import { ApiError, apiHealth, getAiTargets, type ApiHealth } from '../lib/api'
-import { EXTRA_KEYS, EXTRA_META } from '../lib/types'
+import { EXTRA_KEYS, EXTRA_META, normalizeSettings } from '../lib/types'
 import { Disclosure, Field, FieldError, Loading, Notice, Segmented, Sheet } from '../components/ui'
 import ModeSwitch from '../components/ModeSwitch'
 
@@ -201,7 +201,9 @@ export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null
         profile: parsed.profile ?? null,
         meals: parsed.meals,
         foods: Array.isArray(parsed.foods) ? parsed.foods : [],
-        settings: { weightLog: Array.isArray(parsed.settings?.weightLog) ? parsed.settings.weightLog : [] },
+        // Keep the app mode and the Fuel setup from the backup: rebuild only
+        // what is missing, so restoring a copy never resets the app version.
+        settings: normalizeSettings(parsed.settings),
       })
       setDataMsg('Backup restored.')
     } catch (err) {

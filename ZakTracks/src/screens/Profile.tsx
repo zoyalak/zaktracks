@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/AppContext'
-import type { AppData, FuelPlan, UnitSystem } from '../lib/types'
+import { normalizeSettings, type AppData, type FuelPlan, type UnitSystem } from '../lib/types'
 import { eatenKcalOn } from '../lib/selectors'
 import { KCAL_PER_KG } from '../lib/nutrition'
 import { todayKey } from '../lib/date'
@@ -131,7 +131,8 @@ export default function Profile({
         profile: parsed.profile ?? null,
         meals: parsed.meals,
         foods: Array.isArray(parsed.foods) ? parsed.foods : [],
-        settings: parsed.settings ?? { weightLog: [] },
+        // A restored backup keeps the app mode and Fuel setup it carried.
+        settings: normalizeSettings(parsed.settings),
       })
       setDataMsg('Backup restored.')
     } catch (err) {
