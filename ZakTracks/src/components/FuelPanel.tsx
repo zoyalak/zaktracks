@@ -9,6 +9,7 @@ import {
   MAX_SURPLUS_SHARE,
   OVER_SHARE,
   OVER_THRESHOLD_KCAL,
+  QUIET_CREDIT_DAYS,
   fuelBaseKcal,
   fuelStepsKcal,
   fuelSurplusLimit,
@@ -45,6 +46,7 @@ export function FuelReceiptCard({
 }) {
   // "base + movement − deficit", with whichever pieces actually apply today.
   let formula = 'base + movement'
+  if (receipt.activityCreditKcal > 0) formula += ' + quiet days'
   if (carry.kcal > 0) formula += ' + leftover'
   if (carry.kcal < 0) formula += ' − over'
   if (receipt.adjustKcal < 0) formula += ' − deficit'
@@ -89,6 +91,18 @@ export function FuelReceiptCard({
             <span className="rv num pos">+{Math.round(w.kcal).toLocaleString()}</span>
           </div>
         ))}
+
+        {receipt.activityCreditKcal > 0 && (
+          <div className="receipt-row">
+            <span className="rk">
+              <b>Quiet days</b>
+              <span className="tiny muted">
+                paid in thirds from the last {QUIET_CREDIT_DAYS} days of little movement
+              </span>
+            </span>
+            <span className="rv num pos">+{receipt.activityCreditKcal.toLocaleString()}</span>
+          </div>
+        )}
 
         {carry.kcal > 0 && (
           <div className="receipt-row">

@@ -49,6 +49,15 @@ const CARRY_LOOKBACK_DAYS = 60
  */
 export const FUEL_FLOOR_KCAL = 1500
 
+/** A finished day that logged less movement than this counts as a quiet day. */
+export const QUIET_DAY_KCAL = 200
+
+/** What a quiet day still earns, even though it logged almost no movement. */
+export const QUIET_DAY_CREDIT_KCAL = 150
+
+/** Days a quiet day's credit is paid out over, so it doesn't land all at once. */
+export const QUIET_CREDIT_DAYS = 3
+
 /** Resting burn at the fixed 1.2 multiplier. */
 export function fuelBaseKcal(plan: FuelPlan): number {
   return Math.round(bmr(plan) * FUEL_BASE_FACTOR)
@@ -87,6 +96,8 @@ export interface FuelReceipt {
   adjustKcal: number
   /** Calories carried in from the day before. */
   carryKcal: number
+  /** Calories credited here by recent days that logged barely any movement. */
+  activityCreditKcal: number
   surplusLimit: number
   /** True when the requested surplus was cut down to the safe limit. */
   deficitClamped: boolean
@@ -99,10 +110,36 @@ export interface FuelReceipt {
 }
 
 /**
- * Itemise one day's goal from the plan, that day's activity and whatever the
- * day before left on the table.
+ * What recent quiet days pay into a date. A finished day that logged under
+ * QUIET_DAY_KCAL of movement still earns QUIET_DAY_CREDIT_KCAL; instead of
+ * dumping it on the next day, it is paid in equal shares over the
+ * QUIET_CREDIT_DAYS days that follow, so the week's totals stay even.
  */
-export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0): FuelReceipt {
+export function fuelQuietCredit(
+  plan: FuelPlan,
+  days: FuelDay[] | undefined,
+  date: string,
+): number {
+  const share = Math.round(QUIET_DAY_CREDIT_KCAL / QUIET_CREDIT_DAYS)
+  let credit = 0
+  for (let back = 1; back <= QUIET_CREDIT_DAYS; back++) {
+    const from = shiftKey(date, -back)
+    const burn = fuelReceipt(plan, days?.find((d) => d.date === from)).burnedKcal
+    if (burn < QUIET_DAY_KCAL) credit += share
+  }
+  return credit
+}
+
+/**
+ * Itemise one day's goal from the plan, that day's activity, whatever the day
+ * before left on the table and any quiet-day credit.
+ */
+export function fuelReceipt(
+  plan: FuelPlan,
+  day?: FuelDay | null,
+  carryKcal = 0,
+  activityCreditKcal = 0,
+): FuelReceipt {
   const baseKcal = fuelBaseKcal(plan)
   const steps = Math.max(0, Math.round(day?.steps ?? 0))
   const stepsKcal = fuelStepsKcal(plan, steps)
@@ -124,7 +161,8 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
 
   // Negative when the day before went over: it takes calories off this goal.
   const carry = Math.round(carryKcal)
-  const raw = baseKcal + burnedKcal + carry + adjustKcal
+  const activityCredit = Math.max(0, Math.round(activityCreditKcal))
+  const raw = baseKcal + burnedKcal + carry + activityCredit + adjustKcal
   const goalKcal = Math.max(floorKcal, Math.round(raw))
   const floorBoostKcal = Math.max(0, goalKcal - Math.round(raw))
   const deficitKcal = mode === 'deficit' ? applied : 0
@@ -141,6 +179,7 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
     requestedDeficit,
     deficitKcal,
     carryKcal: carry,
+    activityCreditKcal: activityCredit,
     surplusLimit,
     deficitClamped: mode === 'surplus' && requestedDeficit > surplusLimit,
     floorKcal,
@@ -263,15 +302,17 @@ function resolveCarry(
   const prevDay = days?.find((d) => d.date === from)
 
   // An unlogged day hands nothing over, so the chain stops there.
+  const credit = fuelQuietCredit(plan, days, from)
   const carry =
     eatenKcal == null
-      ? carryBetween(from, fuelReceipt(plan, prevDay).goalKcal, null)
+      ? carryBetween(from, fuelReceipt(plan, prevDay, 0, credit).goalKcal, null)
       : carryBetween(
           from,
           fuelReceipt(
             plan,
             prevDay,
             depth < CARRY_LOOKBACK_DAYS ? resolveCarry(plan, days, from, eatenOn, memo, depth + 1).kcal : 0,
+            credit,
           ).goalKcal,
           eatenKcal,
         )
@@ -301,7 +342,12 @@ export function fuelBreakdown(
 ): FuelBreakdown | null {
   if (!plan) return null
   const carry = fuelCarryFor(plan, days, date, eatenOn)
-  const receipt = fuelReceipt(plan, days?.find((d) => d.date === date), carry.kcal)
+  const receipt = fuelReceipt(
+    plan,
+    days?.find((d) => d.date === date),
+    carry.kcal,
+    fuelQuietCredit(plan, days, date),
+  )
   return { receipt, carry, macro: fuelMacros(plan, receipt.goalKcal) }
 }
 
