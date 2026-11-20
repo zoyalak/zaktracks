@@ -125,10 +125,14 @@ export default function Week() {
           <span className="k">Average eaten</span>
           <span className="v num">{summary.avgEaten.toLocaleString()} kcal</span>
         </div>
-        <div className="kv">
-          <span className="k">Average goal</span>
-          <span className="v num">{summary.avgGoal.toLocaleString()} kcal</span>
-        </div>
+        {/* Fuel mode moves the goal day by day (movement, quiet days, carry),
+            so one average says little; Coach mode's goal is fixed. */}
+        {coach && (
+          <div className="kv">
+            <span className="k">Average goal</span>
+            <span className="v num">{summary.avgGoal.toLocaleString()} kcal</span>
+          </div>
+        )}
       </div>
 
       {summary.loggedDays > 0 && (
