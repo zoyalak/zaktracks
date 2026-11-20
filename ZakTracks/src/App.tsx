@@ -58,8 +58,8 @@ export default function App() {
     return (
       <div className="app" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
         <div className="center">
-          <CloverLogo size={46} className="brand-dot" style={{ margin: '0 auto 14px', display: 'block' }} />
-          <div className="muted">Loading ZakTracks…</div>
+          <CloverLogo size={52} className="splash-logo" />
+          <div className="splash-word">ZakTracks</div>
         </div>
       </div>
     )

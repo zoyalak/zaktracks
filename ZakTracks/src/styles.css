@@ -159,6 +159,22 @@ h4 {
   flex: 0 0 auto;
 }
 
+/* Launch screen: the clover turns at a steady, unhurried pace while the app
+   loads, with the wordmark underneath instead of a loading sentence. */
+.splash-logo {
+  width: 52px;
+  height: 52px;
+  display: block;
+  margin: 0 auto 14px;
+  animation: spin 2.4s linear infinite;
+}
+
+.splash-word {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
 /* ----------------------------------------------------------------- cards */
 
 .card {
