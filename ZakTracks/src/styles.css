@@ -107,13 +107,29 @@ h4 {
 }
 
 /* Centered app logo, sitting just below the status bar, with the profile
-   shortcut pinned to the top right (icon only — no label). */
+   shortcut pinned to the top right (icon only — no label).
+
+   It sticks with its own solid background: the sticky page header below it
+   blurs whatever scrolls underneath, and the logo and avatar were the first
+   things to slide into that blurred strip. Now they stay crisp and the header
+   parks directly below them. */
 .brandbar {
-  position: relative;
+  position: sticky;
+  top: var(--safe-t);
+  z-index: 21;
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 38px;
   padding: 2px 0 6px;
+  background: var(--bg);
+}
+
+/* With the brand bar stuck, the header below it has to clear its 38px or the
+   page title would slide under the logo. Screens without a brand bar (the
+   onboarding flow) keep the header at the very top. */
+.brandbar + .topbar {
+  top: calc(var(--safe-t) + 38px);
 }
 
 .brand-action {
