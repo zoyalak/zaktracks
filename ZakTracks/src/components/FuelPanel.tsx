@@ -15,7 +15,7 @@ import {
   type FuelCarry,
   type FuelReceipt,
 } from '../lib/fuel'
-import type { FuelDay, FuelPlan, FuelWorkout, Macro, Sex, UnitSystem } from '../lib/types'
+import type { FuelDay, FuelGoalMode, FuelPlan, FuelWorkout, Macro, Sex, UnitSystem } from '../lib/types'
 import { cmToFtIn, displayWeight, ftInToCm, toKg, weightLabel } from '../lib/units'
 import { Field, FieldError, Notice, NumberField, Segmented, Sheet } from './ui'
 import { Icon } from './icons'
@@ -43,6 +43,13 @@ export function FuelReceiptCard({
   receipt: FuelReceipt
   carry: FuelCarry
 }) {
+  // "base + movement − deficit", with whichever pieces actually apply today.
+  let formula = 'base + movement'
+  if (carry.kcal > 0) formula += ' + leftover'
+  if (carry.kcal < 0) formula += ' − over'
+  if (receipt.adjustKcal < 0) formula += ' − deficit'
+  if (receipt.adjustKcal > 0) formula += ' + surplus'
+
   return (
     <div className="card">
       <div className="card-title">
@@ -109,28 +116,27 @@ export function FuelReceiptCard({
           </div>
         )}
 
-        <div className="receipt-row">
-          <span className="rk">
-            <b>Deficit</b>
-            <span className="tiny muted">
-              {receipt.deficitClamped
-                ? `capped at ${receipt.deficitLimit.toLocaleString()} from your ${receipt.requestedDeficit.toLocaleString()} setting`
-                : 'your daily setting'}
+        {receipt.adjustKcal !== 0 && (
+          <div className="receipt-row">
+            <span className="rk">
+              <b>{receipt.adjustKcal < 0 ? 'Deficit' : 'Surplus'}</b>
+              <span className="tiny muted">
+                {receipt.deficitClamped
+                  ? `capped at ${receipt.deficitLimit.toLocaleString()} from your ${receipt.requestedDeficit.toLocaleString()} setting`
+                  : 'your daily setting'}
+              </span>
             </span>
-          </span>
-          <span className="rv num neg">−{receipt.deficitKcal.toLocaleString()}</span>
-        </div>
+            <span className={receipt.adjustKcal < 0 ? 'rv num neg' : 'rv num pos'}>
+              {receipt.adjustKcal < 0 ? '−' : '+'}
+              {Math.abs(receipt.adjustKcal).toLocaleString()}
+            </span>
+          </div>
+        )}
 
         <div className="receipt-total">
           <span className="rk">
             <b>Goal</b>
-            <span className="tiny muted">
-              {carry.kcal > 0
-                ? 'base + movement + leftover − deficit'
-                : carry.kcal < 0
-                  ? 'base + movement − over − deficit'
-                  : 'base + movement − deficit'}
-            </span>
+            <span className="tiny muted">{formula}</span>
           </span>
           <span className="num" style={{ fontSize: 20, fontWeight: 700 }}>
             {receipt.goalKcal.toLocaleString()}{' '}
@@ -150,7 +156,8 @@ export function FuelReceiptCard({
       {receipt.deficitClamped && !receipt.floorApplied && (
         <div style={{ marginTop: 12 }}>
           <Notice type="info">
-            Deficits are capped at <b>{receipt.deficitLimit.toLocaleString()} kcal</b> a day (up to{' '}
+            {receipt.mode === 'surplus' ? 'Surpluses' : 'Deficits'} are capped at{' '}
+            <b>{receipt.deficitLimit.toLocaleString()} kcal</b> a day (up to{' '}
             {Math.round(MAX_DEFICIT_SHARE * 100)}% of your base burn and {MAX_DEFICIT_KCAL} kcal
             overall).
           </Notice>
@@ -358,7 +365,7 @@ function WorkoutsField({
 
 /* ----------------------------------------------------------------- setup */
 
-/** First-run setup: the body, plus the deficit — nothing about cutting. */
+/** First-run setup: the body, plus the daily deficit, surplus or neither. */
 export function FuelSetupCard({ onSave }: { onSave: (plan: FuelPlan) => void | Promise<void> }) {
   const { profile } = useApp()
   if (!profile) return null
@@ -369,9 +376,9 @@ export function FuelSetupCard({ onSave }: { onSave: (plan: FuelPlan) => void | P
         <span className="hint">asked once</span>
       </div>
       <p className="tiny muted" style={{ marginTop: 0 }}>
-        Your body stats give the base burn, and your deficit is what you eat below it. Every step
-        and workout you log is added on top, and half of whatever you leave uneaten rolls into the
-        next day. Go {OVER_THRESHOLD_KCAL}+ kcal over and {Math.round(OVER_SHARE * 100)}% of the
+        Your body stats give the base burn, and your goal decides whether you eat below it, at it,
+        or above it. Every step and workout you log is added on top, and half of whatever you leave
+        uneaten rolls into the next day. Go {OVER_THRESHOLD_KCAL}+ kcal over and {Math.round(OVER_SHARE * 100)}% of the
         overage comes off the next day's goal instead.
       </p>
       <FuelSetupForm units={profile.units} initial={null} onSave={onSave} />
@@ -397,7 +404,7 @@ export function FuelSetupSheet({
       open={open}
       onClose={onClose}
       title="Goal setup"
-      sub="Your base burn and deficit — changing these changes today's goal."
+      sub="Your base burn and daily adjustment — changing these changes today's goal."
     >
       <FuelSetupForm
         units={profile.units}
@@ -426,6 +433,7 @@ export function FuelSetupForm({
     age: profile?.age ?? 30,
     heightCm: profile?.heightCm ?? 175,
     weightKg: profile?.weightKg ?? 70,
+    goalMode: 'deficit',
     deficitKcal: 300,
   }
   const seed = initial ?? profilePlan
@@ -437,6 +445,7 @@ export function FuelSetupForm({
   const [ft, setFt] = useState(String(ftin.ft))
   const [inch, setInch] = useState(String(ftin.in))
   const [weight, setWeight] = useState(String(displayWeight(seed.weightKg, units)))
+  const [mode, setMode] = useState<FuelGoalMode>(seed.goalMode ?? 'deficit')
   const [deficit, setDeficit] = useState(String(seed.deficitKcal))
   const [saving, setSaving] = useState(false)
 
@@ -448,7 +457,9 @@ export function FuelSetupForm({
     age: num(age),
     heightCm: heightValue,
     weightKg,
-    deficitKcal: Math.max(0, Math.round(num(deficit))),
+    goalMode: mode,
+    // Maintenance stores no adjustment, so switching back keeps a clean zero.
+    deficitKcal: mode === 'maintain' ? 0 : Math.max(0, Math.round(num(deficit))),
   }
 
   const base = weightKg > 0 && heightValue > 0 && draft.age > 0 ? fuelBaseKcal(draft) : 0
@@ -464,8 +475,8 @@ export function FuelSetupForm({
     weightKg > 0 && (weightKg < 30 || weightKg > 350)
       ? 'Enter a weight between 30 and 350 kg.'
       : undefined
-  const deficitError =
-    draft.deficitKcal > 0 && draft.deficitKcal > limit
+  const adjustError =
+    mode !== 'maintain' && draft.deficitKcal > limit
       ? `Keep it under ${limit.toLocaleString()} kcal a day.`
       : undefined
 
@@ -517,19 +528,43 @@ export function FuelSetupForm({
       )}
       <FieldError msg={heightError} />
 
-      <NumberField
-        label="Daily deficit"
-        value={deficit}
-        onChange={setDeficit}
-        unit="kcal"
-        step={50}
-        min={0}
-        max={Math.max(0, limit)}
-      />
-      <div className="tiny muted" style={{ marginTop: -4 }}>
-        Eat this much below your base. But keep it sustainable!
-      </div>
-      <FieldError msg={deficitError} />
+      <Field label="Goal" hint="Eat under your base, at it, or over it.">
+        <Segmented
+          options={[
+            { value: 'deficit', label: 'Deficit' },
+            { value: 'maintain', label: 'Maintain' },
+            { value: 'surplus', label: 'Surplus' },
+          ]}
+          value={mode}
+          onChange={(v) => setMode(v as FuelGoalMode)}
+        />
+      </Field>
+
+      {mode !== 'maintain' && (
+        <>
+          <NumberField
+            label={mode === 'surplus' ? 'Daily surplus' : 'Daily deficit'}
+            value={deficit}
+            onChange={setDeficit}
+            unit="kcal"
+            step={50}
+            min={0}
+            max={Math.max(0, limit)}
+          />
+          <div className="tiny muted" style={{ marginTop: -4, marginBottom: 13 }}>
+            {mode === 'surplus'
+              ? 'Eat this much above your base to build. Slower is easier to hold.'
+              : 'Eat this much below your base. But keep it sustainable!'}
+          </div>
+          <FieldError msg={adjustError} />
+        </>
+      )}
+      {mode === 'maintain' && (
+        <div className="tiny muted" style={{ marginTop: -2, marginBottom: 13 }}>
+          Your goal is your base burn: no deficit, no surplus. Logged steps and workouts still add
+          on top.
+        </div>
+      )}
 
       <button
         className="btn primary"

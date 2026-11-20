@@ -171,13 +171,18 @@ export interface WeightPoint {
 
 /* ------------------------------------------------------------------- fuel */
 
-/** What the Fuel tab asks once: the body, plus the deficit to eat at. */
+/** Which way the daily adjustment goes: eat under base, at it, or over it. */
+export type FuelGoalMode = 'deficit' | 'maintain' | 'surplus'
+
+/** What the Fuel tab asks once: the body, plus the adjustment to eat at. */
 export interface FuelPlan {
   sex: Sex
   age: number
   heightCm: number
   weightKg: number
-  /** Calories per day to eat below the base goal. */
+  /** Deficit, maintenance or surplus — plans saved before this default to deficit. */
+  goalMode?: FuelGoalMode
+  /** Size of the daily adjustment in kcal, always positive. */
   deficitKcal: number
   updatedAt?: number
 }

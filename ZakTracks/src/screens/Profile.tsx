@@ -92,15 +92,22 @@ export default function Profile({
 
   const targetKg = toKg(num(targetText), units)
   const weeks = Math.max(1, Math.round(num(weeksText)) || 1)
+  /** Positive to lose, negative to gain. */
   const deltaKg = (plan?.weightKg ?? profile.weightKg) - targetKg
-  const deficitNeeded = Math.round((deltaKg * KCAL_PER_KG) / (weeks * 7))
+  const losing = deltaKg > 0
+  const gaining = deltaKg < 0
+  const adjustNeeded = Math.round((Math.abs(deltaKg) * KCAL_PER_KG) / (weeks * 7))
   const limit = plan ? fuelDeficitLimit(plan) : 0
-  const deficitToUse = Math.max(0, Math.min(deficitNeeded, limit))
-  const overLimit = deficitNeeded > limit
+  const adjustToUse = Math.max(0, Math.min(adjustNeeded, limit))
+  const overLimit = adjustNeeded > limit
 
-  const applyDeficit = async () => {
-    if (!plan || deficitNeeded <= 0) return
-    await saveFuel({ ...plan, deficitKcal: deficitToUse })
+  const applyAdjust = async () => {
+    if (!plan || adjustNeeded <= 0) return
+    await saveFuel({
+      ...plan,
+      goalMode: losing ? 'deficit' : 'surplus',
+      deficitKcal: adjustToUse,
+    })
     await saveProfile({ ...profile, targetWeightKg: targetKg, weeks })
     setApplied(true)
     setTimeout(() => setApplied(false), 2200)
@@ -174,7 +181,7 @@ export default function Profile({
 
       <div className="card">
         <div className="card-title">
-          <h2>Deficit for your target</h2>
+          <h2>Deficit or surplus for your target</h2>
           <span className="hint">what the pace costs</span>
         </div>
         <div className="field-row">
@@ -201,39 +208,44 @@ export default function Profile({
           </Field>
         </div>
 
-        {deltaKg > 0 ? (
+        {losing || gaining ? (
           <>
             <div className="kv">
-              <span className="k">To lose</span>
+              <span className="k">{losing ? 'To lose' : 'To gain'}</span>
               <span className="v num">
-                {Math.round(deltaKg * 10) / 10} kg in {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                {Math.round(Math.abs(deltaKg) * 10) / 10} kg in {weeks}{' '}
+                {weeks === 1 ? 'week' : 'weeks'}
               </span>
             </div>
             <div className="kv">
-              <span className="k">Daily deficit needed</span>
+              <span className="k">Daily {losing ? 'deficit' : 'surplus'} needed</span>
               <span className="v num" style={{ color: 'var(--accent)' }}>
-                {deficitNeeded.toLocaleString()} kcal
+                {adjustNeeded.toLocaleString()} kcal
               </span>
             </div>
             <div className="kv">
               <span className="k">That's a pace of</span>
-              <span className="v num">{Math.round((deltaKg / weeks) * 100) / 100} kg/week</span>
+              <span className="v num">
+                {Math.round((Math.abs(deltaKg) / weeks) * 100) / 100} kg/week
+              </span>
             </div>
             {plan && (
               <>
                 <button
                   className="btn primary mt"
                   disabled={overLimit}
-                  onClick={() => void applyDeficit()}
+                  onClick={() => void applyAdjust()}
                 >
-                  {applied ? '✓ Deficit updated' : `Use ${deficitToUse.toLocaleString()} kcal deficit`}
+                  {applied
+                    ? `✓ ${losing ? 'Deficit' : 'Surplus'} updated`
+                    : `Use ${adjustToUse.toLocaleString()} kcal ${losing ? 'deficit' : 'surplus'}`}
                 </button>
                 {overLimit && (
                   <Notice type="warn">
                     That pace needs more than the safe limit of{' '}
                     <b>{limit.toLocaleString()} kcal</b> a day (up to{' '}
                     {Math.round(MAX_DEFICIT_SHARE * 100)}% of your base burn and{' '}
-                    {MAX_DEFICIT_KCAL} kcal overall). Add a few weeks and the deficit drops.
+                    {MAX_DEFICIT_KCAL} kcal overall). Add a few weeks and it drops.
                   </Notice>
                 )}
               </>
@@ -241,8 +253,8 @@ export default function Profile({
           </>
         ) : (
           <Notice type="info">
-            Enter a target below your current weight to see the daily deficit that gets you there.
-            The date drives it: more weeks, smaller deficit.
+            Enter a target above or below your current weight to see the daily surplus or deficit
+            that gets you there. The date drives it: more weeks, smaller adjustment.
           </Notice>
         )}
       </div>

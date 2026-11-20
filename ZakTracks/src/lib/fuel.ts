@@ -10,7 +10,7 @@
 
 import { bmr } from './nutrition'
 import { shiftKey } from './date'
-import type { FuelDay, FuelPlan, FuelWorkout, Macro, Sex } from './types'
+import type { FuelDay, FuelGoalMode, FuelPlan, FuelWorkout, Macro, Sex } from './types'
 
 /** Fixed multiplier on BMR - no activity level is picked by the user. */
 export const FUEL_BASE_FACTOR = 1.2
@@ -61,6 +61,11 @@ export function fuelDeficitLimit(plan: FuelPlan): number {
   return Math.max(0, Math.min(MAX_DEFICIT_KCAL, Math.round(fuelBaseKcal(plan) * MAX_DEFICIT_SHARE)))
 }
 
+/** Whether the plan eats under base, at it, or over it. */
+export function fuelGoalMode(plan: FuelPlan): FuelGoalMode {
+  return plan.goalMode ?? 'deficit'
+}
+
 export interface FuelReceipt {
   baseKcal: number
   steps: number
@@ -69,10 +74,14 @@ export interface FuelReceipt {
   workouts: FuelWorkout[]
   workoutsKcal: number
   burnedKcal: number
+  /** Deficit, maintenance or surplus. */
+  mode: FuelGoalMode
   /** What the user asked for. */
   requestedDeficit: number
   /** What was actually taken off (less when the floor got in the way). */
   deficitKcal: number
+  /** The signed adjustment applied to the base: − for a deficit, + for a surplus. */
+  adjustKcal: number
   /** Calories carried in from the day before. */
   carryKcal: number
   deficitLimit: number
@@ -97,19 +106,25 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
   const burnedKcal = stepsKcal + workoutsKcal
 
   const deficitLimit = fuelDeficitLimit(plan)
+  const mode = fuelGoalMode(plan)
   const requestedDeficit = Math.round(plan.deficitKcal || 0)
   const applied = Math.min(Math.max(0, requestedDeficit), deficitLimit)
   const floorKcal = fuelFloorKcal(plan.sex)
 
+  // A deficit takes calories off the base, a surplus adds them on.
+  const adjustKcal = mode === 'deficit' ? -applied : mode === 'surplus' ? applied : 0
+
   // Negative when the day before went over: it takes calories off this goal.
   const carry = Math.round(carryKcal)
-  const raw = baseKcal + burnedKcal + carry - applied
+  const raw = baseKcal + burnedKcal + carry + adjustKcal
   const goalKcal = Math.max(floorKcal, Math.round(raw))
   // The floor can eat into the deficit: report what actually came off.
   const deficitKcal = Math.max(0, baseKcal + burnedKcal + carry - goalKcal)
 
   return {
     baseKcal,
+    mode,
+    adjustKcal,
     steps,
     stepsKcal,
     workouts,
@@ -119,7 +134,7 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
     deficitKcal,
     carryKcal: carry,
     deficitLimit,
-    deficitClamped: requestedDeficit > deficitLimit,
+    deficitClamped: mode !== 'maintain' && requestedDeficit > deficitLimit,
     floorKcal,
     floorApplied: raw < floorKcal,
     goalKcal,
