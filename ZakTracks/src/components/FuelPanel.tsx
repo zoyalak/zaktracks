@@ -370,8 +370,8 @@ export function FuelSetupCard({ onSave }: { onSave: (plan: FuelPlan) => void | P
       <p className="tiny muted" style={{ marginTop: 0 }}>
         Your body stats give the base burn, and your deficit is what you eat below it. Every step
         and workout you log is added on top, and half of whatever you leave uneaten rolls into the
-        next day. Go {OVER_THRESHOLD_KCAL}+ kcal over and half of the overage comes off the next
-        day's goal instead.
+        next day. Go {OVER_THRESHOLD_KCAL}+ kcal over and {Math.round(OVER_SHARE * 100)}% of the
+        overage comes off the next day's goal instead.
       </p>
       <FuelSetupForm units={profile.units} initial={null} onSave={onSave} />
     </div>

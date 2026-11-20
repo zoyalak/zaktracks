@@ -34,7 +34,7 @@ export const CARRY_SHARE = 0.5
 export const CARRY_THRESHOLD_KCAL = 100
 
 /** Share of an overage that is taken off the next day's goal. */
-export const OVER_SHARE = 0.5
+export const OVER_SHARE = 0.75
 
 /** A day has to go at least this far over target before anything is clawed back. */
 export const OVER_THRESHOLD_KCAL = 300
@@ -170,7 +170,7 @@ export interface FuelCarry {
 
 /**
  * Work out what one finished day hands over: 300 kcal or more over target and
- * half of the overage comes off the next day, otherwise anything more than 100
+ * 75% of the overage comes off the next day, otherwise anything more than 100
  * kcal left uneaten adds half of it on. A day within 100 kcal counts as done,
  * and a day with nothing logged hands nothing over: it is unknown, not a fast.
  */
