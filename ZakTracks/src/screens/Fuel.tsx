@@ -11,9 +11,10 @@ import {
   fuelMacros,
   fuelReceipt,
 } from '../lib/fuel'
+import { mealsOnDate, totalsFor } from '../lib/selectors'
 import type { FuelDay, FuelPlan, FuelWorkout, Sex, UnitSystem } from '../lib/types'
 import { cmToFtIn, displayWeight, ftInToCm, toKg, weightLabel } from '../lib/units'
-import { Field, FieldError, Notice, NumberField, Segmented, Sheet } from '../components/ui'
+import { Field, FieldError, MacroBar, Notice, NumberField, Segmented, Sheet } from '../components/ui'
 
 const newId = (): string =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -99,10 +100,14 @@ function FuelBody({
   day: FuelDay | null
   units: UnitSystem
 }) {
-  const { saveFuelDay } = useApp()
+  const { meals, saveFuelDay } = useApp()
 
   const receipt = fuelReceipt(plan, day)
   const macro = fuelMacros(plan, receipt.goalKcal)
+  // The same meals the Track tab logs — nothing is entered twice.
+  const dayMeals = mealsOnDate(meals, todayKey())
+  const eaten = totalsFor(meals, todayKey())
+  const left = receipt.goalKcal - eaten.kcal
 
   const commit = (patch: Partial<FuelDay>) =>
     saveFuelDay({
@@ -198,18 +203,36 @@ function FuelBody({
         )}
       </div>
 
-      <div className="card tight">
-        <div className="row between">
-          <div>
-            <div className="tiny">Macros for this goal</div>
-            <div className="num" style={{ fontSize: 15, marginTop: 4 }}>
-              <span style={{ color: 'var(--protein)' }}>{macro.protein}g P</span>
-              {' · '}
-              <span style={{ color: 'var(--carbs)' }}>{macro.carbs}g C</span>
-              {' · '}
-              <span style={{ color: 'var(--fat)' }}>{macro.fat}g F</span>
-            </div>
+      <div className="card">
+        <div className="card-title">
+          <h2>Eaten today</h2>
+          <span className="hint">from your Track log</span>
+        </div>
+        <div className="row between" style={{ alignItems: 'flex-start' }}>
+          <div className="big-number num" style={{ fontSize: 26 }}>
+            {eaten.kcal.toLocaleString()}{' '}
+            <span style={{ fontSize: 14, color: 'var(--text-dim)' }}>
+              of {receipt.goalKcal.toLocaleString()} kcal
+            </span>
           </div>
+          <div
+            className="tiny"
+            style={{ color: left >= 0 ? 'var(--accent)' : 'var(--danger)', fontWeight: 600 }}
+          >
+            {left >= 0
+              ? `${left.toLocaleString()} kcal left`
+              : `${Math.abs(left).toLocaleString()} kcal over`}
+          </div>
+        </div>
+        <div className="tiny muted" style={{ marginTop: 2 }}>
+          {dayMeals.length === 0
+            ? 'Nothing logged yet — meals you add in Track show up here.'
+            : `${dayMeals.length} ${dayMeals.length === 1 ? 'meal' : 'meals'} logged · goal macros below`}
+        </div>
+        <div className="macro-grid" style={{ marginTop: 12 }}>
+          <MacroBar name="Protein" tone="protein" value={eaten.protein} target={macro.protein} />
+          <MacroBar name="Carbs" tone="carbs" value={eaten.carbs} target={macro.carbs} />
+          <MacroBar name="Fat" tone="fat" value={eaten.fat} target={macro.fat} />
         </div>
       </div>
 
