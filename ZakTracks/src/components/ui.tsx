@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 /* ------------------------------------------------------------------ Logo */
 
@@ -71,7 +72,11 @@ export function Sheet({
   }, [open, onClose])
 
   if (!open) return null
-  return (
+  // Portalled to <body>: the screen wrapper animates in with an opacity
+  // keyframe, which can make it a stacking context, so a sheet rendered inside
+  // it could never rise above the bottom tab bar. At the root the sheet's
+  // z-index holds and its Save button stays clear of the tabs.
+  return createPortal(
     <>
       <div className="sheet-scrim" onClick={onClose} />
       <div
@@ -85,7 +90,8 @@ export function Sheet({
         {sub && <p className="sheet-sub">{sub}</p>}
         {children}
       </div>
-    </>
+    </>,
+    document.body,
   )
 }
 
