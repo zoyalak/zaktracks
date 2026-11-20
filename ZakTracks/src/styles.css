@@ -120,8 +120,8 @@ h4 {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 38px;
-  padding: 2px 0 6px;
+  height: 48px;
+  padding: 12px 0 6px;
   background: var(--bg);
 }
 
@@ -129,7 +129,7 @@ h4 {
    page title would slide under the logo. Screens without a brand bar (the
    onboarding flow) keep the header at the very top. */
 .brandbar + .topbar {
-  top: calc(var(--safe-t) + 38px);
+  top: calc(var(--safe-t) + 48px);
 }
 
 .brand-action {
