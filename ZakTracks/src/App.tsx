@@ -16,8 +16,8 @@ import { CloverLogo, Sheet } from './components/ui'
 type Tab = 'activity' | 'today' | 'week' | 'foods' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'activity', label: 'Activity', icon: '🏃' },
   { id: 'today', label: 'Track', icon: '🍽️' },
+  { id: 'activity', label: 'Activity', icon: '🏃' },
   { id: 'foods', label: 'Foods', icon: '🛒' },
   { id: 'week', label: 'Logs', icon: '📈' },
 ]
