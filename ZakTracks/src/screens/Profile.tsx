@@ -9,6 +9,7 @@ import { displayWeight, toKg, weightLabel } from '../lib/units'
 import { apiHealth, type ApiHealth } from '../lib/api'
 import { Field, Notice, Segmented } from '../components/ui'
 import { FuelSetupForm } from '../components/FuelPanel'
+import ModeSwitch from '../components/ModeSwitch'
 
 /** What the You tab exposes to the tab bar so leaving mid-edit can ask first. */
 export type ProfileGuard = {
@@ -148,6 +149,8 @@ export default function Profile({
           <h1>Your plan</h1>
         </div>
       </div>
+
+      <ModeSwitch />
 
       <div className="card">
         <div className="card-title">

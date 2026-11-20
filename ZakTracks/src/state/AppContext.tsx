@@ -8,7 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AppData, Food, FuelDay, FuelPlan, MealEntry, Profile, Settings } from '../lib/types'
+import type { AppData, AppMode, Food, FuelDay, FuelPlan, MealEntry, Profile, Settings } from '../lib/types'
+import { appModeOf } from '../lib/types'
 import * as db from '../lib/db'
 import { todayKey } from '../lib/date'
 import {
@@ -34,6 +35,10 @@ import {
 
 interface AppContextValue extends AppData {
   ready: boolean
+  /** The app version in use: 'coach' (chat) or 'fuel' (goal engine). */
+  appMode: AppMode
+  /** Switch app versions — meals, foods and weights stay shared. */
+  setAppMode: (mode: AppMode) => Promise<void>
   user: AccountUser | null
   storageMode: 'indexeddb' | 'localstorage'
   signIn: (email: string, password: string) => Promise<void>
@@ -219,6 +224,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
+  const setAppMode = useCallback(
+    async (mode: AppMode) => {
+      if (appModeOf(dataRef.current.settings) === mode) return
+      const settings: Settings = { ...dataRef.current.settings, appMode: mode }
+      commit({ ...dataRef.current, settings })
+      await db.saveSettings(settings)
+      const token = sessionToken()
+      if (token) background(pushSettingsRemote(token, settings))
+    },
+    [commit],
+  )
+
   const saveFuelDay = useCallback(
     async (day: FuelDay) => {
       const prev = dataRef.current.settings
@@ -273,6 +290,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       ...data,
       ready,
+      appMode: appModeOf(data.settings),
+      setAppMode,
       user,
       storageMode: mode,
       signIn,
@@ -292,6 +311,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       data,
       ready,
+      setAppMode,
       user,
       mode,
       signIn,

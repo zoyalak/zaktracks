@@ -1439,6 +1439,48 @@ input[type='range']:focus-visible {
   padding-inline: 18px;
 }
 
+/* ---------------------------------------------------------------- modes */
+/* Switching between Coach and Fuel swaps the tab bar and the screens. A short
+   fade makes the change read as one app, not a reload. */
+@keyframes mode-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mode-slide {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.app {
+  animation: mode-fade 0.26s ease both;
+}
+
+.bottomnav-inner {
+  animation: mode-slide 0.26s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app,
+  .bottomnav-inner {
+    animation: none;
+  }
+}
+
+.mode-card .seg button {
+  font-size: 13px;
+}
+
 /* ---------------------------------------------------------------- receipt */
 /* Fuel's itemised daily goal: base, movement (+), deficit (−), total. */
 .receipt {

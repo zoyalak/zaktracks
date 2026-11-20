@@ -7,23 +7,40 @@ import AddMealSheet from './components/AddMealSheet'
 import Auth from './components/Auth'
 import Onboarding from './components/Onboarding'
 import Activity from './screens/Activity'
+import Chat from './screens/Chat'
 import Today from './screens/Today'
 import Week from './screens/Week'
 import Foods from './screens/Foods'
 import Profile, { type ProfileGuard } from './screens/Profile'
+import ProfileClassic from './screens/ProfileClassic'
 import { CloverLogo, Sheet } from './components/ui'
 
-type Tab = 'activity' | 'today' | 'week' | 'foods' | 'profile'
+type Tab = 'activity' | 'today' | 'week' | 'chat' | 'foods' | 'profile'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
+interface TabDef {
+  id: Tab
+  label: string
+  icon: string
+}
+
+/** Mode 2 — the Fuel engine: Activity sits where the chat used to be. */
+const FUEL_TABS: TabDef[] = [
   { id: 'today', label: 'Track', icon: '🍽️' },
   { id: 'activity', label: 'Activity', icon: '🏃' },
   { id: 'foods', label: 'Foods', icon: '🛒' },
   { id: 'week', label: 'Logs', icon: '📈' },
 ]
 
+/** Mode 1 — the app before Fuel, chat coach included. */
+const COACH_TABS: TabDef[] = [
+  { id: 'today', label: 'Track', icon: '🍽️' },
+  { id: 'chat', label: 'Chat', icon: '💬' },
+  { id: 'foods', label: 'Foods', icon: '🛒' },
+  { id: 'week', label: 'Logs', icon: '📈' },
+]
+
 export default function App() {
-  const { ready, profile, user, meals, settings } = useApp()
+  const { ready, profile, user, meals, settings, appMode } = useApp()
   const [tab, setTab] = useState<Tab>('today')
   const [pendingTab, setPendingTab] = useState<Tab | null>(null)
   const [adding, setAdding] = useState(false)
@@ -53,9 +70,16 @@ export default function App() {
 
   if (!profile) return <Onboarding />
 
+  const tabs = appMode === 'coach' ? COACH_TABS : FUEL_TABS
+  // The two modes share a tab bar shape, but not its labels: after a switch,
+  // a tab the new mode doesn't have (Chat ↔ Activity) falls back to Track.
+  // Profile isn't in the bar — the avatar opens it — so it always counts.
+  const active: Tab =
+    tab === 'profile' || tabs.some((t) => t.id === tab) ? tab : 'today'
+
   const goTab = (t: Tab) => {
-    if (t === tab) return
-    if (tab === 'profile' && guardRef.current?.isDirty()) {
+    if (t === active) return
+    if (active === 'profile' && guardRef.current?.isDirty()) {
       setPendingTab(t)
       return
     }
@@ -79,17 +103,20 @@ export default function App() {
     })
   }
 
-  // The Fuel tab's goal (base + movement − deficit) is the target everywhere
-  // food is measured against one; it falls back to the profile plan until Fuel
-  // setup has been done once.
+  // The Fuel engine's goal (base + movement − deficit) is the target everywhere
+  // food is measured against it, in Fuel mode only; Coach mode measures against
+  // the profile plan, as it did before Fuel existed.
   const targets = targetsFor(
     profile,
-    fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey(), (d) => eatenKcalOn(meals, d)),
+    appMode === 'coach'
+      ? null
+      : fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey(), (d) => eatenKcalOn(meals, d)),
   )
 
   return (
     <>
-      <div className="app">
+      {/* Chat keeps its own scroll region so the page itself never scrolls. */}
+      <div key={appMode} className={active === 'chat' ? 'app chat-mode' : 'app'}>
 
         <div className="brandbar">
           <CloverLogo
@@ -105,22 +132,24 @@ export default function App() {
             👤
           </button>
         </div>
-        {tab === 'activity' && <Activity />}
-        {tab === 'today' && <Today date={day} onDate={setDay} />}
-        {tab === 'week' && <Week />}
-        {tab === 'foods' && <Foods />}
-        {tab === 'profile' && <Profile onGuard={onGuard} />}
+        {active === 'activity' && <Activity />}
+        {active === 'today' && <Today date={day} onDate={setDay} />}
+        {active === 'chat' && <Chat />}
+        {active === 'week' && <Week />}
+        {active === 'foods' && <Foods />}
+        {active === 'profile' &&
+          (appMode === 'coach' ? <ProfileClassic onGuard={onGuard} /> : <Profile onGuard={onGuard} />)}
       </div>
       <nav className="bottomnav">
-        <div className="bottomnav-inner">
-          {TABS.map((t, i) => (
+        <div className="bottomnav-inner" key={appMode}>
+          {tabs.map((t, i) => (
             <Fragment key={t.id}>
               {/* Empty middle column that leaves room for the + button. */}
               {i === 2 && <span className="navslot" aria-hidden />}
               <button
-                className={`navitem${tab === t.id ? ' active' : ''}`}
+                className={`navitem${active === t.id ? ' active' : ''}`}
                 onClick={() => goTab(t.id)}
-                aria-current={tab === t.id}
+                aria-current={active === t.id}
               >
                 <span className="ico" aria-hidden>
                   {t.icon}
@@ -141,7 +170,7 @@ export default function App() {
         // From the Track screen the sheet opens on the day you're viewing;
         // elsewhere it starts on today. Saving jumps Track to the day that
         // was logged, so the meal you just added is what you see.
-        date={tab === 'today' ? day : todayKey()}
+        date={active === 'today' ? day : todayKey()}
         goalKcal={targets.goalKcal}
         onSaved={(meal) => setDay(meal.date)}
       />

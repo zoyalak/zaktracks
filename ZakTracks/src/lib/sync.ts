@@ -211,8 +211,10 @@ export function mergeRemote(local: AppData, remote: RemoteState): AppData {
     foods: [...foods.values()].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
     settings: normalizeSettings({
       weightLog: [...weights.values()].sort((a, b) => a.date.localeCompare(b.date)),
-      // Fuel setup and activity live with the rest of the account's settings;
-      // whichever copy exists wins, since both are written from one device.
+      // Fuel setup, activity and the chosen app mode live with the rest of the
+      // account's settings; whichever copy exists wins, since both are written
+      // from one device.
+      appMode: remote.settings?.appMode ?? local.settings.appMode,
       fuel: remote.settings?.fuel ?? local.settings.fuel,
       fuelDays: remote.settings?.fuelDays ?? local.settings.fuelDays,
     }),

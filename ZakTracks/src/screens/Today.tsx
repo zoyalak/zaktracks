@@ -10,18 +10,20 @@ import MealSheet from '../components/MealSheet'
 import { Disclosure, Field, MacroBar, Notice, ProgressRing, Sheet } from '../components/ui'
 
 export default function Today({ date, onDate }: { date: string; onDate: (key: string) => void }) {
-  const { profile, meals, settings, upsertMeal, removeMeal, logWeight } = useApp()
+  const { profile, meals, settings, upsertMeal, removeMeal, logWeight, appMode } = useApp()
   const [editing, setEditing] = useState<{ meal: MealEntry; isNew: boolean } | null>(null)
   const [weighOpen, setWeighOpen] = useState(false)
   const [weightInput, setWeightInput] = useState('')
 
   if (!profile) return null
 
-  // The goal is the Activity tab's: base burn + logged movement + yesterday's
-  // leftover − deficit. Macro targets come out of that same goal.
-  const fuel = fuelGoalFor(settings.fuel ?? null, settings.fuelDays, date, (d) =>
-    eatenKcalOn(meals, d),
-  )
+  // In Fuel mode the goal is the Activity tab's: base burn + logged movement +
+  // yesterday's leftover − deficit, with macros out of that same goal. In Coach
+  // mode it stays the profile plan's target, as it was before Fuel.
+  const fuel =
+    appMode === 'coach'
+      ? null
+      : fuelGoalFor(settings.fuel ?? null, settings.fuelDays, date, (d) => eatenKcalOn(meals, d))
   const targets = targetsFor(profile, fuel)
   const dayMeals = mealsOnDate(meals, date)
   const totals = totalsFor(meals, date)

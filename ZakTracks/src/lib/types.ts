@@ -3,6 +3,8 @@ export type ActivityKey = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_
 export type GoalType = 'maintain' | 'cut' | 'bulk'
 export type UnitSystem = 'metric' | 'imperial'
 export type MealSource = 'photo' | 'describe' | 'food' | 'manual'
+/** 'coach' is the app before Fuel (chat tab); 'fuel' is the goal engine. */
+export type AppMode = 'coach' | 'fuel'
 
 export interface Profile {
   sex: Sex
@@ -198,6 +200,8 @@ export interface FuelDay {
 
 export interface Settings {
   weightLog: WeightPoint[]
+  /** Which version of the app the user is in — see AppMode. Defaults to fuel. */
+  appMode?: AppMode
   /** Fuel setup — absent until the Fuel tab has been set up once. */
   fuel?: FuelPlan
   /** Per-date activity that tops up that day's Fuel goal. */
@@ -207,10 +211,15 @@ export interface Settings {
 /** A safe Settings object from whatever was stored (older copies lack fuel). */
 export const normalizeSettings = (s?: Partial<Settings> | null): Settings => {
   const out: Settings = { weightLog: Array.isArray(s?.weightLog) ? s!.weightLog : [] }
+  if (s?.appMode === 'coach' || s?.appMode === 'fuel') out.appMode = s.appMode
   if (s?.fuel) out.fuel = s.fuel
   if (Array.isArray(s?.fuelDays) && s.fuelDays.length) out.fuelDays = s.fuelDays
   return out
 }
+
+/** The mode to render — Fuel unless the account chose the classic coach. */
+export const appModeOf = (s?: Partial<Settings> | null): AppMode =>
+  s?.appMode === 'coach' ? 'coach' : 'fuel'
 
 export interface AppData {
   profile: Profile | null

@@ -7,23 +7,31 @@ import { displayWeight, weightLabel } from '../lib/units'
 import { MacroBar, Notice, Segmented } from '../components/ui'
 
 export default function Week() {
-  const { profile, meals, settings } = useApp()
+  const { profile, meals, settings, appMode } = useApp()
   const [days, setDays] = useState<'7' | '14' | '30'>('7')
 
-  // Fuel's goal for a given day (base + movement + leftover − deficit).
-  const goalOn = (date: string): number => {
-    if (!profile) return 0
-    const fuel = fuelGoalFor(settings.fuel ?? null, settings.fuelDays, date, (d) => eatenKcalOn(meals, d))
-    return targetsFor(profile, fuel).goalKcal
-  }
-  const fuel = fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey(), (d) => eatenKcalOn(meals, d))
+  // Coach mode measures every day against the profile plan; Fuel mode against
+  // that day's own goal (base + movement + leftover − deficit).
+  const coach = appMode === 'coach'
+  const goalOn = coach
+    ? undefined
+    : (date: string): number => {
+        if (!profile) return 0
+        const fuel = fuelGoalFor(settings.fuel ?? null, settings.fuelDays, date, (d) =>
+          eatenKcalOn(meals, d),
+        )
+        return targetsFor(profile, fuel).goalKcal
+      }
+  const fuel = coach
+    ? null
+    : fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey(), (d) => eatenKcalOn(meals, d))
 
   const summary = useMemo(() => {
     if (!profile) return null
     // Rolling windows ending today, so yesterday's numbers are always on screen.
     return weekSummary(meals, targetsFor(profile, fuel), Number(days), undefined, goalOn)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meals, profile, days, fuel, settings.fuel, settings.fuelDays])
+  }, [meals, profile, days, fuel, settings.fuel, settings.fuelDays, appMode])
 
   const weight = useMemo(() => sortedWeight(settings.weightLog).slice(-14), [settings.weightLog])
 
