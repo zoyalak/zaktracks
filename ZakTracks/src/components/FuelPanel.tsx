@@ -13,6 +13,7 @@ import {
   fuelBaseKcal,
   fuelStepsKcal,
   fuelSurplusLimit,
+  fuelWorkoutKcal,
   type FuelCarry,
   type FuelReceipt,
 } from '../lib/fuel'
@@ -85,10 +86,10 @@ export function FuelReceiptCard({
             <span className="rk">
               <b>{w.label}</b>
               <span className="tiny muted">
-                {w.source === 'manual' ? 'your own estimate' : 'AI estimate'}
+                {w.source === 'manual' ? 'your own estimate' : 'AI estimate'} · 90% counted
               </span>
             </span>
-            <span className="rv num pos">+{Math.round(w.kcal).toLocaleString()}</span>
+            <span className="rv num pos">+{fuelWorkoutKcal(w.kcal).toLocaleString()}</span>
           </div>
         ))}
 
@@ -229,7 +230,7 @@ export function FuelActivityCard({
       <div className="card">
         <div className="card-title">
           <h2>Workouts</h2>
-          <span className="hint">estimated, then added</span>
+          <span className="hint">90% of the burn counts</span>
         </div>
         <WorkoutsField plan={plan} day={day} commit={commit} />
       </div>
@@ -382,7 +383,7 @@ function WorkoutsField({
             <div key={w.id} className="kv">
               <span className="k">
                 {w.label}
-                <span className="tiny muted"> · {Math.round(w.kcal)} kcal</span>
+                <span className="tiny muted"> · {fuelWorkoutKcal(w.kcal)} kcal counted</span>
               </span>
               <button
                 className="icon-btn"

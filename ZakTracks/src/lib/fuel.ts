@@ -58,6 +58,18 @@ export const QUIET_DAY_CREDIT_KCAL = 150
 /** Days a quiet day's credit is paid out over, so it doesn't land all at once. */
 export const QUIET_CREDIT_DAYS = 3
 
+/**
+ * The share of a workout's burn that counts towards the goal. Estimating a
+ * workout is more likely too generous than too mean, so a tenth is held back:
+ * eating under the burn is harmless, eating over it is the thing to avoid.
+ */
+export const WORKOUT_SHARE = 0.9
+
+/** What a logged workout is actually worth to the day's goal. */
+export function fuelWorkoutKcal(kcal: number): number {
+  return Math.round(Math.max(0, kcal) * WORKOUT_SHARE)
+}
+
 /** Resting burn at the fixed 1.2 multiplier. */
 export function fuelBaseKcal(plan: FuelPlan): number {
   return Math.round(bmr(plan) * FUEL_BASE_FACTOR)
@@ -144,7 +156,7 @@ export function fuelReceipt(
   const steps = Math.max(0, Math.round(day?.steps ?? 0))
   const stepsKcal = fuelStepsKcal(plan, steps)
   const workouts = (day?.workouts ?? []).filter((w) => Number.isFinite(w.kcal) && w.kcal > 0)
-  const workoutsKcal = Math.round(workouts.reduce((sum, w) => sum + w.kcal, 0))
+  const workoutsKcal = workouts.reduce((sum, w) => sum + fuelWorkoutKcal(w.kcal), 0)
   const burnedKcal = stepsKcal + workoutsKcal
 
   const surplusLimit = fuelSurplusLimit(plan)
