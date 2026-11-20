@@ -77,6 +77,17 @@ export default function FoodEditor({
       )}
       {error && <Notice type="error">{error}</Notice>}
 
+      {/* Save sits at the top: the form is long enough that the button at the
+          bottom meant scrolling past every field to store a food. */}
+      <div className="btn-row" style={{ marginBottom: 16 }}>
+        <button className="btn ghost" style={{ flex: '0 0 32%' }} onClick={onClose}>
+          Cancel
+        </button>
+        <button className="btn primary" disabled={!valid || saving} onClick={save}>
+          {saving ? 'Saving…' : 'Save food'}
+        </button>
+      </div>
+
       <Field label="Name">
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Peanut butter, crunchy" />
       </Field>
@@ -174,14 +185,6 @@ export default function FoodEditor({
         </p>
       </Disclosure>
 
-      <div className="btn-row">
-        <button className="btn ghost" style={{ flex: '0 0 32%' }} onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn primary" disabled={!valid || saving} onClick={save}>
-          {saving ? 'Saving…' : 'Save food'}
-        </button>
-      </div>
     </Sheet>
   )
 }
