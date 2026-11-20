@@ -27,6 +27,12 @@ export const MAX_DEFICIT_SHARE = 0.3
 /** Share of an uneaten day that rolls into the next day's goal. */
 export const CARRY_SHARE = 0.5
 
+/**
+ * A day has to be more than this far under target before anything carries
+ * over; landing within 100 kcal of the goal is close enough to count as done.
+ */
+export const CARRY_THRESHOLD_KCAL = 100
+
 /** The lowest daily intake the app will ever hand out. */
 export const fuelFloorKcal = (sex: Sex): number =>
   sex === 'male' ? 1500 : sex === 'female' ? 1200 : 1350
@@ -149,8 +155,10 @@ export interface FuelCarry {
 }
 
 /**
- * Half of what was left uneaten the day before moves into this day's goal. A
- * day with nothing logged hands nothing over: it is unknown, not a fast.
+ * Half of what was left uneaten the day before moves into this day's goal, but
+ * only when that day finished more than 100 kcal under target. A day within
+ * 100 kcal counts as done, and a day with nothing logged hands nothing over:
+ * it is unknown, not a fast.
  */
 export function fuelCarryFor(
   plan: FuelPlan,
@@ -166,7 +174,7 @@ export function fuelCarryFor(
   }
   const shortfallKcal = Math.max(0, prevGoal - eatenKcal)
   return {
-    kcal: Math.round(shortfallKcal * CARRY_SHARE),
+    kcal: shortfallKcal > CARRY_THRESHOLD_KCAL ? Math.round(shortfallKcal * CARRY_SHARE) : 0,
     from,
     goalKcal: prevGoal,
     eatenKcal,
