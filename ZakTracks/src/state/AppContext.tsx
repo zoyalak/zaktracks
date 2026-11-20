@@ -67,6 +67,29 @@ const background = (p: Promise<unknown> | null): void => {
   if (p) void p.catch(() => undefined)
 }
 
+/**
+ * The Fuel setup keeps its own copy of the body stats. Whenever the profile's
+ * copy changes, carry it across so the same numbers never have to be entered
+ * twice — a weight logged in either version feeds both targets.
+ */
+const fuelWithBody = (settings: Settings, body: Partial<Profile>): Settings => {
+  const fuel = settings.fuel
+  if (!fuel) return settings
+  const next = {
+    ...fuel,
+    sex: body.sex ?? fuel.sex,
+    age: body.age ?? fuel.age,
+    heightCm: body.heightCm ?? fuel.heightCm,
+    weightKg: body.weightKg ?? fuel.weightKg,
+  }
+  return next.sex === fuel.sex &&
+    next.age === fuel.age &&
+    next.heightCm === fuel.heightCm &&
+    next.weightKg === fuel.weightKg
+    ? settings
+    : { ...settings, fuel: next }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(emptyData)
   const [ready, setReady] = useState(false)
@@ -157,10 +180,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const saveProfile = useCallback(
     async (profile: Profile | null) => {
-      commit({ ...dataRef.current, profile })
+      const prev = dataRef.current
+      const settings = profile ? fuelWithBody(prev.settings, profile) : prev.settings
+      commit({ ...prev, profile, settings })
       await db.saveProfile(profile)
+      if (settings !== prev.settings) await db.saveSettings(settings)
       const token = sessionToken()
-      if (token) background(pushProfileRemote(token, profile))
+      if (token) {
+        background(pushProfileRemote(token, profile))
+        if (settings !== prev.settings) background(pushSettingsRemote(token, settings))
+      }
     },
     [commit],
   )
@@ -254,7 +283,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (kg: number, date: string = todayKey()) => {
       const prev = dataRef.current
       const others = prev.settings.weightLog.filter((w) => w.date !== date)
-      const settings: Settings = { ...prev.settings, weightLog: [...others, { date, kg }] }
+      const settings: Settings = fuelWithBody(
+        { ...prev.settings, weightLog: [...others, { date, kg }] },
+        { weightKg: kg },
+      )
       const profile = prev.profile ? { ...prev.profile, weightKg: kg } : prev.profile
       commit({ ...prev, settings, profile })
       await db.saveSettings(settings)
