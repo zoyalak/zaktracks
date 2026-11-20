@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AppData, Food, MealEntry, Profile, Settings } from '../lib/types'
+import type { AppData, Food, FuelDay, FuelPlan, MealEntry, Profile, Settings } from '../lib/types'
 import * as db from '../lib/db'
 import { todayKey } from '../lib/date'
 import {
@@ -45,6 +45,10 @@ interface AppContextValue extends AppData {
   upsertFood: (food: Food) => Promise<void>
   removeFood: (id: string) => Promise<void>
   logWeight: (kg: number, date?: string) => Promise<void>
+  /** Save (or clear) the Fuel setup — the body stats and the daily deficit. */
+  saveFuel: (plan: FuelPlan | null) => Promise<void>
+  /** Save one date's activity (steps + workouts) that tops up its goal. */
+  saveFuelDay: (day: FuelDay) => Promise<void>
   importData: (data: AppData) => Promise<void>
   resetAll: () => Promise<void>
 }
@@ -204,11 +208,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
+  const saveFuel = useCallback(
+    async (fuel: FuelPlan | null) => {
+      const settings: Settings = { ...dataRef.current.settings, fuel: fuel ?? undefined }
+      commit({ ...dataRef.current, settings })
+      await db.saveSettings(settings)
+      const token = sessionToken()
+      if (token) background(pushSettingsRemote(token, settings))
+    },
+    [commit],
+  )
+
+  const saveFuelDay = useCallback(
+    async (day: FuelDay) => {
+      const prev = dataRef.current.settings
+      const others = (prev.fuelDays ?? []).filter((d) => d.date !== day.date)
+      const fuelDays = [...others, day].sort((a, b) => a.date.localeCompare(b.date))
+      const settings: Settings = { ...prev, fuelDays }
+      commit({ ...dataRef.current, settings })
+      await db.saveSettings(settings)
+      const token = sessionToken()
+      if (token) background(pushSettingsRemote(token, settings))
+    },
+    [commit],
+  )
+
   const logWeight = useCallback(
     async (kg: number, date: string = todayKey()) => {
       const prev = dataRef.current
       const others = prev.settings.weightLog.filter((w) => w.date !== date)
-      const settings: Settings = { weightLog: [...others, { date, kg }] }
+      const settings: Settings = { ...prev.settings, weightLog: [...others, { date, kg }] }
       const profile = prev.profile ? { ...prev.profile, weightKg: kg } : prev.profile
       commit({ ...prev, settings, profile })
       await db.saveSettings(settings)
@@ -255,6 +284,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       upsertFood,
       removeFood,
       logWeight,
+      saveFuel,
+      saveFuelDay,
       importData,
       resetAll,
     }),
@@ -272,6 +303,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       upsertFood,
       removeFood,
       logWeight,
+      saveFuel,
+      saveFuelDay,
       importData,
       resetAll,
     ],

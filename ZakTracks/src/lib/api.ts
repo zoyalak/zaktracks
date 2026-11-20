@@ -113,6 +113,24 @@ export const estimateIngredient = (
 ): Promise<IngredientEstimate> =>
   post<IngredientEstimate>('/api/analyze/ingredient', { name, grams: grams ?? undefined }, signal)
 
+export interface WorkoutEstimate {
+  /** Calories burnt by the described workout. */
+  kcal: number
+  /** Minutes the description implies, when it says. */
+  minutes: number | null
+  /** One line naming the assumption behind the number. */
+  note: string
+  model: string
+}
+
+/** Ask the AI how many calories a described workout burnt for this body. */
+export const estimateWorkout = (
+  description: string,
+  weightKg: number,
+  signal?: AbortSignal,
+): Promise<WorkoutEstimate> =>
+  post<WorkoutEstimate>('/api/analyze/workout', { description, weightKg }, signal)
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   text: string

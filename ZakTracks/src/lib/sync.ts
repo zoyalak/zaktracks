@@ -8,6 +8,7 @@
  */
 
 import type { AppData, Food, MealEntry, Profile, Settings, WeightPoint } from './types'
+import { normalizeSettings } from './types'
 
 const SESSION_KEY = 'macrolens:session'
 
@@ -208,6 +209,12 @@ export function mergeRemote(local: AppData, remote: RemoteState): AppData {
     profile: remote.profile ?? local.profile,
     meals: [...meals.values()].sort((a, b) => a.createdAt - b.createdAt),
     foods: [...foods.values()].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
-    settings: { weightLog: [...weights.values()].sort((a, b) => a.date.localeCompare(b.date)) },
+    settings: normalizeSettings({
+      weightLog: [...weights.values()].sort((a, b) => a.date.localeCompare(b.date)),
+      // Fuel setup and activity live with the rest of the account's settings;
+      // whichever copy exists wins, since both are written from one device.
+      fuel: remote.settings?.fuel ?? local.settings.fuel,
+      fuelDays: remote.settings?.fuelDays ?? local.settings.fuelDays,
+    }),
   }
 }

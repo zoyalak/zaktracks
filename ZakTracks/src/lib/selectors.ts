@@ -17,9 +17,31 @@ export interface Targets {
   warning?: string
 }
 
-/** Everything the app needs to know about the current plan. */
-export function targetsFor(profile: Profile): Targets {
+/**
+ * Everything the app needs to know about the current plan.
+ *
+ * When the Fuel tab has been set up, its goal for the day (base + movement −
+ * deficit) becomes the target every food comparison uses; the profile plan is
+ * only the fallback for an account that hasn't done Fuel setup.
+ */
+export function targetsFor(
+  profile: Profile,
+  fuel?: { goalKcal: number; macro: Macro } | null,
+): Targets {
   const plan = goalPlan(profile)
+  if (fuel) {
+    const dailyDeltaKcal = fuel.goalKcal - plan.maintenance
+    return {
+      maintenance: plan.maintenance,
+      goalKcal: fuel.goalKcal,
+      macro: { ...fuel.macro, kcal: fuel.goalKcal },
+      extras: {},
+      macroSource: 'formula',
+      weeklyRateKg: (dailyDeltaKcal * 7) / 7700,
+      dailyDeltaKcal,
+      clamped: false,
+    }
+  }
   const ai = profile.aiTargets
   const macro = ai
     ? { kcal: plan.target, protein: ai.protein, carbs: ai.carbs, fat: ai.fat }

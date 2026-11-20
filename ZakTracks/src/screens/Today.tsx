@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
 import { formatDayLabel, formatDayName, shiftKey, todayKey } from '../lib/date'
 import { mealsOnDate, targetsFor, totalsFor, weekAverage } from '../lib/selectors'
+import { fuelGoalFor } from '../lib/fuel'
 import { displayWeight, toKg, weightLabel } from '../lib/units'
 import type { ExtraMacros, MealEntry } from '../lib/types'
 import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '../lib/types'
@@ -15,7 +16,8 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
   const [weightInput, setWeightInput] = useState('')
 
   if (!profile) return null
-  const targets = targetsFor(profile)
+  // Fuel's goal for this day, when it has been set up.
+  const targets = targetsFor(profile, fuelGoalFor(settings.fuel ?? null, settings.fuelDays, date))
   const dayMeals = mealsOnDate(meals, date)
   const totals = totalsFor(meals, date)
   const dayExtras: ExtraMacros = dayMeals.reduce(

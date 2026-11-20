@@ -189,6 +189,29 @@ const INGREDIENT_SCHEMA = {
   propertyOrdering: ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat', 'extras'],
 }
 
+// One workout description: how many calories it burnt for this body.
+const WORKOUT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    kcal: { type: 'NUMBER' },
+    minutes: { type: 'NUMBER' },
+    note: { type: 'STRING' },
+  },
+  required: ['kcal', 'minutes', 'note'],
+  propertyOrdering: ['kcal', 'minutes', 'note'],
+}
+
+const WORKOUT_PROMPT = `You are an exercise physiologist estimating the energy cost of one workout.
+
+You are given a short description of what someone did (e.g. "45 min run", "1 hour weights", "5 km walk") and their body weight. Return the calories that session burnt.
+
+Rules:
+- Assume a typical intensity for the activity named; when the description names a pace, distance or intensity, use it.
+- Scale with body weight: a heavier body burns more for the same session. Use standard MET values (running at 10 km/h is about 10 MET).
+- "kcal" is for the whole session, not per minute. Round it to the nearest 5.
+- "minutes" is the duration you assumed, in minutes; use 0 when the description names no time.
+- "note" is one short sentence stating the assumption that matters most (intensity, pace or duration).`
+
 const CHAT_PROMPT = `You are ZakTracks, a friendly nutrition coach living inside the user's calorie-tracking app.
 
 The app sends you today's live numbers: the calorie goal, how much has been eaten, what is left, the macro targets, and progress against them. Use them — they are the source of truth.
@@ -698,6 +721,53 @@ async function handleIngredient(request: Request, env: Env): Promise<Response> {
     carbs: num(o.carbs),
     fat: num(o.fat),
     extras: readExtras(o),
+    model,
+  })
+}
+
+/** Calories burnt by one described workout, for the user's body weight. */
+async function handleWorkout(request: Request, env: Env): Promise<Response> {
+  let body: { description?: unknown; weightKg?: unknown }
+  try {
+    body = await request.json()
+  } catch {
+    const err = new Error('Expected a JSON body.') as Error & { status: number; code: string }
+    err.status = 400
+    err.code = 'BAD_REQUEST'
+    throw err
+  }
+  const description = str(body.description).slice(0, 300)
+  if (!description) {
+    const err = new Error('A workout description is required.') as Error & {
+      status: number
+      code: string
+    }
+    err.status = 400
+    err.code = 'BAD_REQUEST'
+    throw err
+  }
+  const given = num(body.weightKg)
+  const weightKg = given > 0 ? Math.min(300, Math.max(30, given)) : 75
+
+  const { text, model } = await callModel(
+    env,
+    [{ text: `Workout: ${description}\nBody weight: ${Math.round(weightKg)} kg` }],
+    WORKOUT_SCHEMA,
+    WORKOUT_PROMPT,
+  )
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    return json(errorBody('The estimate came back in an unexpected format.', 'PARSE'), 502)
+  }
+  const o = raw as Record<string, unknown>
+  const minutes = num(o.minutes)
+
+  return json({
+    kcal: Math.max(0, Math.round(num(o.kcal))),
+    minutes: minutes > 0 ? Math.round(minutes) : null,
+    note: str(o.note),
     model,
   })
 }
@@ -1270,6 +1340,9 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
   }
   if (path === '/api/analyze/ingredient' && request.method === 'POST') {
     return await handleIngredient(request, env)
+  }
+  if (path === '/api/analyze/workout' && request.method === 'POST') {
+    return await handleWorkout(request, env)
   }
   if (path === '/api/goals' && request.method === 'POST') {
     return await handleGoals(request, env)

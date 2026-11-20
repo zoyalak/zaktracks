@@ -167,8 +167,49 @@ export interface WeightPoint {
   kg: number
 }
 
+/* ------------------------------------------------------------------- fuel */
+
+/** What the Fuel tab asks once: the body, plus the deficit to eat at. */
+export interface FuelPlan {
+  sex: Sex
+  age: number
+  heightCm: number
+  weightKg: number
+  /** Calories per day to eat below the base goal. */
+  deficitKcal: number
+  updatedAt?: number
+}
+
+export interface FuelWorkout {
+  id: string
+  /** What was done, e.g. "45 min run". */
+  label: string
+  kcal: number
+  /** How the number was produced, when it matters for the receipt. */
+  source?: 'ai' | 'manual'
+}
+
+/** Yesterday's movement, counted toward the goal of date `YYYY-MM-DD`. */
+export interface FuelDay {
+  date: string
+  steps: number
+  workouts: FuelWorkout[]
+}
+
 export interface Settings {
   weightLog: WeightPoint[]
+  /** Fuel setup — absent until the Fuel tab has been set up once. */
+  fuel?: FuelPlan
+  /** Per-date activity that tops up that day's Fuel goal. */
+  fuelDays?: FuelDay[]
+}
+
+/** A safe Settings object from whatever was stored (older copies lack fuel). */
+export const normalizeSettings = (s?: Partial<Settings> | null): Settings => {
+  const out: Settings = { weightLog: Array.isArray(s?.weightLog) ? s!.weightLog : [] }
+  if (s?.fuel) out.fuel = s.fuel
+  if (Array.isArray(s?.fuelDays) && s.fuelDays.length) out.fuelDays = s.fuelDays
+  return out
 }
 
 export interface AppData {

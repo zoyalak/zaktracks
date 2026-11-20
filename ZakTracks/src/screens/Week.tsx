@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
 import { targetsFor, weekSummary, sortedWeight } from '../lib/selectors'
+import { fuelGoalFor } from '../lib/fuel'
 import { keyToDate, todayKey } from '../lib/date'
 import { displayWeight, weightLabel } from '../lib/units'
 import { MacroBar, Notice, Segmented } from '../components/ui'
@@ -9,16 +10,19 @@ export default function Week() {
   const { profile, meals, settings } = useApp()
   const [days, setDays] = useState<'7' | '14' | '30'>('7')
 
+  // Fuel's goal for today, when it has been set up.
+  const fuel = fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey())
+
   const summary = useMemo(() => {
     if (!profile) return null
     // Rolling windows ending today, so yesterday's numbers are always on screen.
-    return weekSummary(meals, targetsFor(profile), Number(days))
-  }, [meals, profile, days])
+    return weekSummary(meals, targetsFor(profile, fuel), Number(days))
+  }, [meals, profile, days, fuel])
 
   const weight = useMemo(() => sortedWeight(settings.weightLog).slice(-14), [settings.weightLog])
 
   if (!profile || !summary) return null
-  const targets = targetsFor(profile)
+  const targets = targetsFor(profile, fuel)
   const scale = Math.max(targets.goalKcal * 1.25, ...summary.days.map((d) => d.eaten.kcal)) || 1
   const goalPct = Math.min(100, (targets.goalKcal / scale) * 100)
   const adherence =

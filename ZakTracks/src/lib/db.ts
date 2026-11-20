@@ -1,4 +1,5 @@
 import type { AppData, Food, MealEntry, Profile, Settings } from './types'
+import { normalizeSettings } from './types'
 
 /**
  * On-device persistence. IndexedDB is the primary store; if it is unavailable
@@ -10,7 +11,7 @@ const DB_NAME = 'macrolens'
 const DB_VERSION = 1
 const LS_KEY = 'macrolens:backup'
 
-const defaultSettings = (): Settings => ({ weightLog: [] })
+const defaultSettings = (): Settings => normalizeSettings()
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -150,7 +151,7 @@ function readSnapshot(): Snapshot {
       profile: parsed.profile ?? null,
       meals: Array.isArray(parsed.meals) ? parsed.meals : [],
       foods: Array.isArray(parsed.foods) ? parsed.foods : [],
-      settings: { weightLog: parsed.settings?.weightLog ?? [] },
+      settings: normalizeSettings(parsed.settings),
       authoritative: parsed.authoritative === true,
     }
   } catch {
@@ -188,7 +189,8 @@ function mergeFromSnapshot(base: AppData, snap: Snapshot): AppData {
     profile: snap.profile ?? base.profile,
     meals: meals.sort((a, b) => a.createdAt - b.createdAt),
     foods: foods.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
-    settings: snap.settings.weightLog.length > 0 ? snap.settings : base.settings,
+    settings:
+      normalizeSettings(snap.settings).weightLog.length > 0 ? normalizeSettings(snap.settings) : normalizeSettings(base.settings),
   }
 }
 
@@ -205,7 +207,9 @@ const hasContent = (s: Snapshot): boolean =>
   s.profile !== null ||
   s.meals.length > 0 ||
   s.foods.length > 0 ||
-  s.settings.weightLog.length > 0
+  s.settings.weightLog.length > 0 ||
+  Boolean(s.settings.fuel) ||
+  (s.settings.fuelDays?.length ?? 0) > 0
 
 async function absorbSnapshot(loaded: AppData, db: IDBDatabase): Promise<AppData> {
   const snap = readSnapshot()
@@ -229,7 +233,10 @@ async function absorbSnapshot(loaded: AppData, db: IDBDatabase): Promise<AppData
     }
     const kv = t.objectStore('kv')
     if (snap.profile) kv.put(snap.profile, 'profile')
-    if (snap.authoritative || snap.settings.weightLog.length > 0) kv.put(snap.settings, 'settings')
+    const snapSettings = normalizeSettings(snap.settings)
+    if (snap.authoritative || snapSettings.weightLog.length > 0 || snapSettings.fuel) {
+      kv.put(snapSettings, 'settings')
+    }
     for (const m of snap.meals) t.objectStore('meals').put(m)
     for (const f of snap.foods) t.objectStore('foods').put(f)
     await new Promise<void>((resolve, reject) => {
@@ -342,7 +349,7 @@ export async function loadAll(): Promise<AppData> {
       profile: profile ?? null,
       meals: (meals ?? []).sort((a, b) => a.createdAt - b.createdAt),
       foods: (foods ?? []).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
-      settings: { weightLog: settings?.weightLog ?? [] },
+      settings: normalizeSettings(settings),
     }
 
     // IndexedDB came back empty but the mirror still has the data — the

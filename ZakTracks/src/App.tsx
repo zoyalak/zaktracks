@@ -2,27 +2,28 @@ import { Fragment, useCallback, useRef, useState } from 'react'
 import { useApp } from './state/AppContext'
 import { todayKey } from './lib/date'
 import { targetsFor } from './lib/selectors'
+import { fuelGoalFor } from './lib/fuel'
 import AddMealSheet from './components/AddMealSheet'
 import Auth from './components/Auth'
 import Onboarding from './components/Onboarding'
 import Today from './screens/Today'
 import Week from './screens/Week'
-import Chat from './screens/Chat'
+import Fuel from './screens/Fuel'
 import Foods from './screens/Foods'
 import Profile, { type ProfileGuard } from './screens/Profile'
 import { CloverLogo, Sheet } from './components/ui'
 
-type Tab = 'today' | 'week' | 'chat' | 'foods' | 'profile'
+type Tab = 'today' | 'week' | 'fuel' | 'foods' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'today', label: 'Track', icon: '🍽️' },
-  { id: 'chat', label: 'Chat', icon: '💬' },
+  { id: 'fuel', label: 'Fuel', icon: '🔥' },
   { id: 'foods', label: 'Foods', icon: '🛒' },
   { id: 'week', label: 'Logs', icon: '📈' },
 ]
 
 export default function App() {
-  const { ready, profile, user } = useApp()
+  const { ready, profile, user, settings } = useApp()
   const [tab, setTab] = useState<Tab>('today')
   const [pendingTab, setPendingTab] = useState<Tab | null>(null)
   const [adding, setAdding] = useState(false)
@@ -78,12 +79,14 @@ export default function App() {
     })
   }
 
-  const targets = targetsFor(profile)
+  // The Fuel tab's goal (base + movement − deficit) is the target everywhere
+  // food is measured against one; it falls back to the profile plan until Fuel
+  // setup has been done once.
+  const targets = targetsFor(profile, fuelGoalFor(settings.fuel ?? null, settings.fuelDays, todayKey()))
 
   return (
     <>
-      {/* Chat keeps its own scroll region so the page itself never scrolls. */}
-      <div className={tab === 'chat' ? 'app chat-mode' : 'app'}>
+      <div className="app">
 
         <div className="brandbar">
           <CloverLogo
@@ -101,7 +104,7 @@ export default function App() {
         </div>
         {tab === 'today' && <Today date={day} onDate={setDay} />}
         {tab === 'week' && <Week />}
-        {tab === 'chat' && <Chat />}
+        {tab === 'fuel' && <Fuel />}
         {tab === 'foods' && <Foods />}
         {tab === 'profile' && <Profile onGuard={onGuard} />}
       </div>
