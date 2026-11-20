@@ -4,7 +4,7 @@ import { normalizeSettings, type AppData, type FuelPlan, type UnitSystem } from 
 import { eatenKcalOn } from '../lib/selectors'
 import { KCAL_PER_KG } from '../lib/nutrition'
 import { todayKey } from '../lib/date'
-import { MAX_DEFICIT_KCAL, MAX_DEFICIT_SHARE, fuelBreakdown, fuelDeficitLimit } from '../lib/fuel'
+import { MAX_SURPLUS_KCAL, MAX_SURPLUS_SHARE, fuelBreakdown, fuelSurplusLimit } from '../lib/fuel'
 import { displayWeight, toKg, weightLabel } from '../lib/units'
 import { apiHealth, type ApiHealth } from '../lib/api'
 import { Field, Notice, Segmented } from '../components/ui'
@@ -97,9 +97,10 @@ export default function Profile({
   const losing = deltaKg > 0
   const gaining = deltaKg < 0
   const adjustNeeded = Math.round((Math.abs(deltaKg) * KCAL_PER_KG) / (weeks * 7))
-  const limit = plan ? fuelDeficitLimit(plan) : 0
-  const adjustToUse = Math.max(0, Math.min(adjustNeeded, limit))
-  const overLimit = adjustNeeded > limit
+  const limit = plan ? fuelSurplusLimit(plan) : 0
+  // A deficit may be as deep as the target needs; only a surplus is capped.
+  const adjustToUse = gaining ? Math.max(0, Math.min(adjustNeeded, limit)) : adjustNeeded
+  const overLimit = gaining && adjustNeeded > limit
 
   const applyAdjust = async () => {
     if (!plan || adjustNeeded <= 0) return
@@ -244,8 +245,8 @@ export default function Profile({
                   <Notice type="warn">
                     That pace needs more than the safe limit of{' '}
                     <b>{limit.toLocaleString()} kcal</b> a day (up to{' '}
-                    {Math.round(MAX_DEFICIT_SHARE * 100)}% of your base burn and{' '}
-                    {MAX_DEFICIT_KCAL} kcal overall). Add a few weeks and it drops.
+                    {Math.round(MAX_SURPLUS_SHARE * 100)}% of your base burn and{' '}
+                    {MAX_SURPLUS_KCAL} kcal overall). Add a few weeks and it drops.
                   </Notice>
                 )}
               </>

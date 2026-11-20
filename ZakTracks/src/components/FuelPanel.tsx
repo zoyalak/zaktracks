@@ -5,13 +5,13 @@ import { ApiError, estimateWorkout } from '../lib/api'
 import {
   CARRY_SHARE,
   FUEL_BASE_FACTOR,
-  MAX_DEFICIT_KCAL,
-  MAX_DEFICIT_SHARE,
+  MAX_SURPLUS_KCAL,
+  MAX_SURPLUS_SHARE,
   OVER_SHARE,
   OVER_THRESHOLD_KCAL,
   fuelBaseKcal,
-  fuelDeficitLimit,
   fuelStepsKcal,
+  fuelSurplusLimit,
   type FuelCarry,
   type FuelReceipt,
 } from '../lib/fuel'
@@ -122,7 +122,7 @@ export function FuelReceiptCard({
               <b>{receipt.adjustKcal < 0 ? 'Deficit' : 'Surplus'}</b>
               <span className="tiny muted">
                 {receipt.deficitClamped
-                  ? `capped at ${receipt.deficitLimit.toLocaleString()} from your ${receipt.requestedDeficit.toLocaleString()} setting`
+                  ? `capped at ${receipt.surplusLimit.toLocaleString()} from your ${receipt.requestedDeficit.toLocaleString()} setting`
                   : 'your daily setting'}
               </span>
             </span>
@@ -130,6 +130,18 @@ export function FuelReceiptCard({
               {receipt.adjustKcal < 0 ? '−' : '+'}
               {Math.abs(receipt.adjustKcal).toLocaleString()}
             </span>
+          </div>
+        )}
+
+        {receipt.floorBoostKcal > 0 && (
+          <div className="receipt-row">
+            <span className="rk">
+              <b>Floor</b>
+              <span className="tiny muted">
+                the goal never shows below {receipt.floorKcal.toLocaleString()}
+              </span>
+            </span>
+            <span className="rv num pos">+{receipt.floorBoostKcal.toLocaleString()}</span>
           </div>
         )}
 
@@ -147,18 +159,19 @@ export function FuelReceiptCard({
 
       {receipt.floorApplied && (
         <div style={{ marginTop: 12 }}>
-          <Notice type="warn">
-            The goal can't go below <b>{receipt.floorKcal.toLocaleString()} kcal</b>, so today's
-            deficit is smaller than your setting.
+          <Notice type="info">
+            Your deficit would put the goal under{' '}
+            <b>{receipt.floorKcal.toLocaleString()} kcal</b>, so it's held there. Steps and
+            workouts still add to the number underneath, so they lift the goal once they carry it
+            past the floor — not from the floor itself.
           </Notice>
         </div>
       )}
-      {receipt.deficitClamped && !receipt.floorApplied && (
+      {receipt.deficitClamped && (
         <div style={{ marginTop: 12 }}>
           <Notice type="info">
-            {receipt.mode === 'surplus' ? 'Surpluses' : 'Deficits'} are capped at{' '}
-            <b>{receipt.deficitLimit.toLocaleString()} kcal</b> a day (up to{' '}
-            {Math.round(MAX_DEFICIT_SHARE * 100)}% of your base burn and {MAX_DEFICIT_KCAL} kcal
+            Surpluses are capped at <b>{receipt.surplusLimit.toLocaleString()} kcal</b> a day (up to{' '}
+            {Math.round(MAX_SURPLUS_SHARE * 100)}% of your base burn and {MAX_SURPLUS_KCAL} kcal
             overall).
           </Notice>
         </div>
@@ -463,7 +476,9 @@ export function FuelSetupForm({
   }
 
   const base = weightKg > 0 && heightValue > 0 && draft.age > 0 ? fuelBaseKcal(draft) : 0
-  const limit = base > 0 ? fuelDeficitLimit(draft) : 0
+  // Only a surplus is capped; a deficit may go as deep as the user wants, with
+  // the displayed goal held at the floor.
+  const limit = base > 0 ? fuelSurplusLimit(draft) : 0
 
   const ageError =
     age.trim() && (draft.age < 13 || draft.age > 110) ? 'Enter an age between 13 and 110.' : undefined
@@ -476,7 +491,7 @@ export function FuelSetupForm({
       ? 'Enter a weight between 30 and 350 kg.'
       : undefined
   const adjustError =
-    mode !== 'maintain' && draft.deficitKcal > limit
+    mode === 'surplus' && draft.deficitKcal > limit
       ? `Keep it under ${limit.toLocaleString()} kcal a day.`
       : undefined
 
@@ -489,7 +504,7 @@ export function FuelSetupForm({
     weightKg >= 30 &&
     weightKg <= 350 &&
     draft.deficitKcal >= 0 &&
-    draft.deficitKcal <= limit &&
+    (mode !== 'surplus' || draft.deficitKcal <= limit) &&
     base > 0
 
   return (
@@ -549,7 +564,7 @@ export function FuelSetupForm({
             unit="kcal"
             step={50}
             min={0}
-            max={Math.max(0, limit)}
+            max={mode === 'surplus' ? Math.max(0, limit) : undefined}
           />
           <div className="tiny muted" style={{ marginTop: -4, marginBottom: 13 }}>
             {mode === 'surplus'

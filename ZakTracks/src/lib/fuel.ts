@@ -10,7 +10,7 @@
 
 import { bmr } from './nutrition'
 import { shiftKey } from './date'
-import type { FuelDay, FuelGoalMode, FuelPlan, FuelWorkout, Macro, Sex } from './types'
+import type { FuelDay, FuelGoalMode, FuelPlan, FuelWorkout, Macro } from './types'
 
 /** Fixed multiplier on BMR - no activity level is picked by the user. */
 export const FUEL_BASE_FACTOR = 1.2
@@ -18,11 +18,11 @@ export const FUEL_BASE_FACTOR = 1.2
 /** Every step counts: about 350 kcal per 10,000 steps at 70 kg. */
 export const KCAL_PER_STEP_PER_KG = 0.0005
 
-/** Hard ceiling on a daily deficit, whatever the body size. */
-export const MAX_DEFICIT_KCAL = 1000
+/** Hard ceiling on a daily surplus, whatever the body size. */
+export const MAX_SURPLUS_KCAL = 1000
 
 /** ...and a sensible ceiling relative to the base goal (30%). */
-export const MAX_DEFICIT_SHARE = 0.3
+export const MAX_SURPLUS_SHARE = 0.3
 
 /** Share of an uneaten day that rolls into the next day's goal. */
 export const CARRY_SHARE = 0.5
@@ -42,9 +42,12 @@ export const OVER_THRESHOLD_KCAL = 300
 /** How many days back the chain of carries is followed. */
 const CARRY_LOOKBACK_DAYS = 60
 
-/** The lowest daily intake the app will ever hand out. */
-export const fuelFloorKcal = (sex: Sex): number =>
-  sex === 'male' ? 1500 : sex === 'female' ? 1200 : 1350
+/**
+ * The lowest daily intake the app will ever show. A deficit may take the
+ * arithmetic below this — steps and workouts still lift the number underneath
+ * — but the goal itself is never displayed under the floor.
+ */
+export const FUEL_FLOOR_KCAL = 1500
 
 /** Resting burn at the fixed 1.2 multiplier. */
 export function fuelBaseKcal(plan: FuelPlan): number {
@@ -56,9 +59,9 @@ export function fuelStepsKcal(plan: FuelPlan, steps: number): number {
   return Math.round(n * KCAL_PER_STEP_PER_KG * plan.weightKg)
 }
 
-/** The largest deficit this body can safely carry. */
-export function fuelDeficitLimit(plan: FuelPlan): number {
-  return Math.max(0, Math.min(MAX_DEFICIT_KCAL, Math.round(fuelBaseKcal(plan) * MAX_DEFICIT_SHARE)))
+/** The largest surplus the app will add on; a bulk beyond it is a typo. */
+export function fuelSurplusLimit(plan: FuelPlan): number {
+  return Math.max(0, Math.min(MAX_SURPLUS_KCAL, Math.round(fuelBaseKcal(plan) * MAX_SURPLUS_SHARE)))
 }
 
 /** Whether the plan eats under base, at it, or over it. */
@@ -84,10 +87,12 @@ export interface FuelReceipt {
   adjustKcal: number
   /** Calories carried in from the day before. */
   carryKcal: number
-  deficitLimit: number
-  /** True when the requested deficit was cut down to the safe limit. */
+  surplusLimit: number
+  /** True when the requested surplus was cut down to the safe limit. */
   deficitClamped: boolean
   floorKcal: number
+  /** How much the floor added back to keep the goal at its minimum. */
+  floorBoostKcal: number
   /** True when the floor, not the deficit, decided the final goal. */
   floorApplied: boolean
   goalKcal: number
@@ -105,11 +110,14 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
   const workoutsKcal = Math.round(workouts.reduce((sum, w) => sum + w.kcal, 0))
   const burnedKcal = stepsKcal + workoutsKcal
 
-  const deficitLimit = fuelDeficitLimit(plan)
+  const surplusLimit = fuelSurplusLimit(plan)
   const mode = fuelGoalMode(plan)
   const requestedDeficit = Math.round(plan.deficitKcal || 0)
-  const applied = Math.min(Math.max(0, requestedDeficit), deficitLimit)
-  const floorKcal = fuelFloorKcal(plan.sex)
+  // A deficit is taken as entered - however deep - so movement still lifts the
+  // number it is subtracted from; the floor alone keeps the goal sensible.
+  const applied =
+    mode === 'surplus' ? Math.min(Math.max(0, requestedDeficit), surplusLimit) : Math.max(0, requestedDeficit)
+  const floorKcal = FUEL_FLOOR_KCAL
 
   // A deficit takes calories off the base, a surplus adds them on.
   const adjustKcal = mode === 'deficit' ? -applied : mode === 'surplus' ? applied : 0
@@ -118,8 +126,8 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
   const carry = Math.round(carryKcal)
   const raw = baseKcal + burnedKcal + carry + adjustKcal
   const goalKcal = Math.max(floorKcal, Math.round(raw))
-  // The floor can eat into the deficit: report what actually came off.
-  const deficitKcal = Math.max(0, baseKcal + burnedKcal + carry - goalKcal)
+  const floorBoostKcal = Math.max(0, goalKcal - Math.round(raw))
+  const deficitKcal = mode === 'deficit' ? applied : 0
 
   return {
     baseKcal,
@@ -133,10 +141,11 @@ export function fuelReceipt(plan: FuelPlan, day?: FuelDay | null, carryKcal = 0)
     requestedDeficit,
     deficitKcal,
     carryKcal: carry,
-    deficitLimit,
-    deficitClamped: mode !== 'maintain' && requestedDeficit > deficitLimit,
+    surplusLimit,
+    deficitClamped: mode === 'surplus' && requestedDeficit > surplusLimit,
     floorKcal,
-    floorApplied: raw < floorKcal,
+    floorBoostKcal,
+    floorApplied: floorBoostKcal > 0,
     goalKcal,
   }
 }
