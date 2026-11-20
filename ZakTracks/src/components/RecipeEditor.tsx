@@ -13,6 +13,7 @@ import { ApiError, estimateIngredient } from '../lib/api'
 import { matchIngredient } from '../lib/estimate'
 import { useApp } from '../state/AppContext'
 import { Field, Loading, Notice, Sheet } from './ui'
+import { Icon } from './icons'
 
 type AddNote = { type: 'warn' | 'info'; text: string } | null
 
@@ -323,7 +324,7 @@ export default function RecipeEditor({
                 setRaws((prev) => prev.filter((_, i) => i !== index))
               }}
             >
-              ✕
+              <Icon name="close" size={15} />
             </button>
           </div>
           <div className="edit-macros">

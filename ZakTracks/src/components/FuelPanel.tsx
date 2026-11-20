@@ -18,6 +18,7 @@ import {
 import type { FuelDay, FuelPlan, FuelWorkout, Macro, Sex, UnitSystem } from '../lib/types'
 import { cmToFtIn, displayWeight, ftInToCm, toKg, weightLabel } from '../lib/units'
 import { Field, FieldError, Notice, NumberField, Segmented, Sheet } from './ui'
+import { Icon } from './icons'
 
 const newId = (): string => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
@@ -345,7 +346,7 @@ function WorkoutsField({
                 aria-label={`Remove ${w.label}`}
                 onClick={() => commit({ workouts: workouts.filter((x) => x.id !== w.id) })}
               >
-                ✕
+                <Icon name="close" size={15} />
               </button>
             </div>
           ))}

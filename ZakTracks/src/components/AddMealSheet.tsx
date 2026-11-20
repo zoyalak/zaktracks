@@ -10,6 +10,7 @@ import { formatDayLabel, nowTime, shiftKey, todayKey } from '../lib/date'
 import { totalsFor } from '../lib/selectors'
 import MealSheet, { draftMeal } from './MealSheet'
 import { Choice, Field, Loading, Notice, Sheet } from './ui'
+import { Icon } from './icons'
 
 /**
  * The AI's items, with the user's own foods taking precedence: when an item is
@@ -356,19 +357,19 @@ export default function AddMealSheet({
           {mode === 'menu' && (
             <>
               <Choice
-                emoji="📷"
+                icon="camera"
                 title="Snap the plate"
                 desc="Take a photo, say what's in it, get the macros"
                 onClick={() => setMode('photo')}
               />
               <Choice
-                emoji="🗣️"
+                icon="mic"
                 title="Describe it"
                 desc={hasKey ? 'Type the meal — the AI calculates the macros' : 'Matched against the built-in food table'}
                 onClick={() => setMode('describe')}
               />
               <Choice
-                emoji="🥗"
+                icon="bowl"
                 title="Pick from foods"
                 desc="Build it from your saved foods and the built-in table"
                 onClick={() => setMode('pick')}
@@ -390,10 +391,12 @@ export default function AddMealSheet({
                 matches what you actually ate.
               </p>
               <button className="btn primary" onClick={() => photoInput.current?.click()}>
-                📷 Take a photo
+                <Icon name="camera" size={17} />
+                Take a photo
               </button>
               <button className="btn mt" onClick={() => libraryInput.current?.click()}>
-                🖼️ Choose from library
+                <Icon name="image" size={17} />
+                Choose from library
               </button>
               <button className="btn ghost mt" onClick={() => setMode('menu')}>
                 Back
@@ -480,7 +483,7 @@ export default function AddMealSheet({
             <>
               <div className="searchbar">
                 <span className="icon" aria-hidden>
-                  🔍
+                  <Icon name="search" size={16} />
                 </span>
                 <input
                   className="input"
@@ -495,8 +498,8 @@ export default function AddMealSheet({
                 <div className="card tight">
                   <div className="row between" style={{ marginBottom: 10 }}>
                     <b style={{ fontSize: 14.5 }}>{picked.food.name}</b>
-                    <button className="icon-btn" onClick={() => setPicked(null)}>
-                      ✕
+                    <button className="icon-btn" aria-label="Clear selection" onClick={() => setPicked(null)}>
+                      <Icon name="close" size={15} />
                     </button>
                   </div>
                   {picked.food.per === 'serving' ? (
@@ -569,7 +572,7 @@ export default function AddMealSheet({
                         style={{ width: 30, height: 30, fontSize: 13 }}
                         onClick={() => setCart((prev) => prev.filter((_, idx) => idx !== i))}
                       >
-                        ✕
+                        <Icon name="close" size={13} />
                       </button>
                     </div>
                   ))}
@@ -608,7 +611,7 @@ function Empty() {
   return (
     <div className="empty">
       <span className="big" aria-hidden>
-        🔍
+        <Icon name="search" size={32} />
       </span>
       Nothing matched. Try a different word, or add it in Foods → New food.
     </div>

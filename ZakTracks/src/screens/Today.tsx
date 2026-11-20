@@ -8,6 +8,7 @@ import type { ExtraMacros, MealEntry } from '../lib/types'
 import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '../lib/types'
 import MealSheet from '../components/MealSheet'
 import { Disclosure, Field, MacroBar, Notice, ProgressRing, Sheet } from '../components/ui'
+import { Icon } from '../components/icons'
 
 export default function Today({ date, onDate }: { date: string; onDate: (key: string) => void }) {
   const { profile, meals, settings, upsertMeal, removeMeal, logWeight, appMode } = useApp()
@@ -224,7 +225,7 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
         <div className="card">
           <div className="empty">
             <span className="big" aria-hidden>
-              🍽️
+              <Icon name="plate" size={32} />
             </span>
             Nothing logged yet. Tap <b>+</b> to snap a photo of your meal or describe it.
           </div>
@@ -241,7 +242,10 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
                 <img className="meal-thumb" src={meal.photo} alt="" />
               ) : (
                 <span className="meal-thumb" aria-hidden>
-                  {meal.source === 'food' ? '🥗' : meal.source === 'describe' ? '🗣️' : '🍽️'}
+                  <Icon
+                    name={meal.source === 'food' ? 'bowl' : meal.source === 'describe' ? 'mic' : 'camera'}
+                    size={21}
+                  />
                 </span>
               )}
               <span className="meal-body">

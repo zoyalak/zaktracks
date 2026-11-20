@@ -8,6 +8,7 @@ import { MAX_DEFICIT_KCAL, MAX_DEFICIT_SHARE, fuelBreakdown, fuelDeficitLimit } 
 import { displayWeight, toKg, weightLabel } from '../lib/units'
 import { apiHealth, type ApiHealth } from '../lib/api'
 import { Field, Notice, Segmented } from '../components/ui'
+import { Icon } from '../components/icons'
 import { FuelSetupForm } from '../components/FuelPanel'
 import ModeSwitch from '../components/ModeSwitch'
 
@@ -342,10 +343,12 @@ export default function Profile({
         </p>
         <div className="btn-row">
           <button className="btn" onClick={exportData}>
-            ⬇️ Export
+            <Icon name="download" size={16} />
+            Export
           </button>
           <button className="btn" onClick={() => importInput.current?.click()}>
-            ⬆️ Import
+            <Icon name="upload" size={16} />
+            Import
           </button>
         </div>
         <input
@@ -362,7 +365,8 @@ export default function Profile({
         {dataMsg && <p className="tiny mt">{dataMsg}</p>}
         {installable && (
           <button className="btn mt" onClick={() => window.dispatchEvent(new Event('macrolens:install'))}>
-            📲 Install app on this phone
+            <Icon name="phone" size={16} />
+            Install app on this phone
           </button>
         )}
         <button

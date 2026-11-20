@@ -5,14 +5,23 @@ import type { ActivityKey, GoalType, Profile, Sex, UnitSystem } from '../lib/typ
 import { ACTIVITY, defaultSplit, goalPlan, macroTargets } from '../lib/nutrition'
 import { cmToFtIn, displayWeight, ftInToCm, fromKg, toKg, weightLabel } from '../lib/units'
 import { Choice, CloverLogo, Field, FieldError, NumberField, Segmented } from './ui'
+import type { IconName } from './icons'
 
 const STEPS = ['You', 'Body', 'Activity', 'Goal', 'Plan'] as const
 
-const GOALS: { id: GoalType; emoji: string; title: string; desc: string }[] = [
-  { id: 'maintain', emoji: '⚖️', title: 'Maintain', desc: 'Hold your weight where it is' },
-  { id: 'cut', emoji: '🔥', title: 'Cut', desc: 'Lose fat on a schedule' },
-  { id: 'bulk', emoji: '💪', title: 'Gain', desc: 'Gain weight on a schedule' },
+const GOALS: { id: GoalType; icon: IconName; title: string; desc: string }[] = [
+  { id: 'maintain', icon: 'scale', title: 'Maintain', desc: 'Hold your weight where it is' },
+  { id: 'cut', icon: 'flame', title: 'Cut', desc: 'Lose fat on a schedule' },
+  { id: 'bulk', icon: 'dumbbell', title: 'Gain', desc: 'Gain weight on a schedule' },
 ]
+
+const ACTIVITY_ICONS: Record<ActivityKey, IconName> = {
+  sedentary: 'chair',
+  light: 'walk',
+  moderate: 'run',
+  active: 'dumbbell',
+  very_active: 'medal',
+}
 
 export default function Onboarding() {
   const { saveProfile } = useApp()
@@ -266,9 +275,7 @@ export default function Onboarding() {
           {(Object.keys(ACTIVITY) as ActivityKey[]).map((key) => (
             <Choice
               key={key}
-              emoji={
-                key === 'sedentary' ? '🪑' : key === 'light' ? '🚶' : key === 'moderate' ? '🏃' : key === 'active' ? '🏋️' : '🏅'
-              }
+              icon={ACTIVITY_ICONS[key]}
               title={`${ACTIVITY[key].label} · ×${ACTIVITY[key].factor}`}
               desc={ACTIVITY[key].hint}
               active={activity === key}
@@ -293,7 +300,7 @@ export default function Onboarding() {
           {GOALS.map((g) => (
             <Choice
               key={g.id}
-              emoji={g.emoji}
+              icon={g.icon}
               title={g.title}
               desc={g.desc}
               active={goal === g.id}

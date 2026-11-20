@@ -15,6 +15,7 @@ import { ApiError, estimateIngredient } from '../lib/api'
 import { savedFoodRows, savedFoodServingRows, searchFoods } from '../lib/foods'
 import { useApp } from '../state/AppContext'
 import { Disclosure, Field, Notice, Sheet } from './ui'
+import { Icon } from './icons'
 
 const emptyItem = (): LogItem => ({ name: '', grams: null, kcal: 0, protein: 0, carbs: 0, fat: 0 })
 
@@ -320,7 +321,7 @@ export default function MealSheet({
 
       <div className="card-title" style={{ marginTop: 6 }}>
         <h2>Items</h2>
-        <span className="hint">type a new food, then ✨ · or pick a saved one</span>
+        <span className="hint">type a new food, then tap the sparkle · or pick a saved one</span>
       </div>
 
       {items.map((item, index) => (
@@ -355,7 +356,7 @@ export default function MealSheet({
               disabled={estimating[index]}
               onClick={() => void estimateItem(index)}
             >
-              {estimating[index] ? <span className="spinner" /> : '✨'}
+              {estimating[index] ? <span className="spinner" /> : <Icon name="sparkle" size={16} />}
             </button>
             <button
               className="icon-btn"
@@ -366,7 +367,7 @@ export default function MealSheet({
                 setRaws((prev) => prev.filter((_, i) => i !== index))
               }}
             >
-              ✕
+              <Icon name="close" size={15} />
             </button>
           </div>
           {estimating[index] && (
@@ -415,7 +416,8 @@ export default function MealSheet({
           className="btn ghost small grow"
           onClick={() => setPickOpen((open) => !open)}
         >
-          🥗 From my foods
+          <Icon name="bowl" size={15} />
+          From my foods
         </button>
       </div>
 
@@ -423,7 +425,7 @@ export default function MealSheet({
         <div className="card tight" style={{ marginTop: 10 }}>
           <div className="searchbar">
             <span className="icon" aria-hidden>
-              🔍
+              <Icon name="search" size={16} />
             </span>
             <input
               className="input"
@@ -444,7 +446,7 @@ export default function MealSheet({
               <div className="row between" style={{ marginBottom: 6 }}>
                 <b style={{ fontSize: 14 }}>{servingPick.food.name}</b>
                 <button className="icon-btn" aria-label="Cancel servings" onClick={() => setServingPick(null)}>
-                  ✕
+                  <Icon name="close" size={15} />
                 </button>
               </div>
               <p className="tiny muted" style={{ marginBottom: 8 }}>

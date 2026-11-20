@@ -14,29 +14,30 @@ import Foods from './screens/Foods'
 import Profile, { type ProfileGuard } from './screens/Profile'
 import ProfileClassic from './screens/ProfileClassic'
 import { CloverLogo, Sheet } from './components/ui'
+import { Icon, type IconName } from './components/icons'
 
 type Tab = 'activity' | 'today' | 'week' | 'chat' | 'foods' | 'profile'
 
 interface TabDef {
   id: Tab
   label: string
-  icon: string
+  icon: IconName
 }
 
 /** Mode 2 — the Fuel engine: Activity sits where the chat used to be. */
 const FUEL_TABS: TabDef[] = [
-  { id: 'today', label: 'Track', icon: '🍽️' },
-  { id: 'activity', label: 'Activity', icon: '🏃' },
-  { id: 'foods', label: 'Foods', icon: '🛒' },
-  { id: 'week', label: 'Logs', icon: '📈' },
+  { id: 'today', label: 'Track', icon: 'track' },
+  { id: 'activity', label: 'Activity', icon: 'activity' },
+  { id: 'foods', label: 'Foods', icon: 'foods' },
+  { id: 'week', label: 'Logs', icon: 'logs' },
 ]
 
 /** Mode 1 — the app before Fuel, chat coach included. */
 const COACH_TABS: TabDef[] = [
-  { id: 'today', label: 'Track', icon: '🍽️' },
-  { id: 'chat', label: 'Chat', icon: '💬' },
-  { id: 'foods', label: 'Foods', icon: '🛒' },
-  { id: 'week', label: 'Logs', icon: '📈' },
+  { id: 'today', label: 'Track', icon: 'track' },
+  { id: 'chat', label: 'Chat', icon: 'chat' },
+  { id: 'foods', label: 'Foods', icon: 'foods' },
+  { id: 'week', label: 'Logs', icon: 'logs' },
 ]
 
 export default function App() {
@@ -129,7 +130,7 @@ export default function App() {
             aria-label="Your profile"
             onClick={() => goTab('profile')}
           >
-            👤
+            <Icon name="profile" size={19} />
           </button>
         </div>
         {active === 'activity' && <Activity />}
@@ -152,7 +153,7 @@ export default function App() {
                 aria-current={active === t.id}
               >
                 <span className="ico" aria-hidden>
-                  {t.icon}
+                  <Icon name={t.icon} size={20} />
                 </span>
                 {t.label}
               </button>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { Icon, type IconName } from './icons'
 
 /* ------------------------------------------------------------------ Logo */
 
@@ -205,13 +206,13 @@ export function Segmented<T extends string>({
 }
 
 export function Choice({
-  emoji,
+  icon,
   title,
   desc,
   active,
   onClick,
 }: {
-  emoji: string
+  icon: IconName
   title: string
   desc?: string
   active?: boolean
@@ -219,8 +220,8 @@ export function Choice({
 }) {
   return (
     <button className={`choice${active ? ' active' : ''}`} onClick={onClick} type="button">
-      <span className="emoji" aria-hidden>
-        {emoji}
+      <span className="ico" aria-hidden>
+        <Icon name={icon} size={21} />
       </span>
       <span className="grow">
         <span className="t">{title}</span>
@@ -363,20 +364,21 @@ export function Notice({
   type?: 'warn' | 'error' | 'info'
   children: ReactNode
 }) {
-  const icon = type === 'error' ? '⚠️' : type === 'info' ? '💡' : '⚠️'
   return (
     <div className={`notice ${type === 'warn' ? '' : type}`}>
-      <span aria-hidden>{icon}</span>
+      <span className="notice-ico" aria-hidden>
+        <Icon name={type === 'info' ? 'info' : 'alert'} size={16} />
+      </span>
       <div>{children}</div>
     </div>
   )
 }
 
-export function Empty({ icon, children }: { icon: string; children: ReactNode }) {
+export function Empty({ icon, children }: { icon: IconName; children: ReactNode }) {
   return (
     <div className="empty">
       <span className="big" aria-hidden>
-        {icon}
+        <Icon name={icon} size={32} />
       </span>
       {children}
     </div>

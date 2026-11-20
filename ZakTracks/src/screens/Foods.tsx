@@ -9,6 +9,7 @@ import { fileToDataUrl } from '../lib/photo'
 import FoodEditor from '../components/FoodEditor'
 import RecipeEditor from '../components/RecipeEditor'
 import { Choice, Field, Loading, Notice, Sheet } from '../components/ui'
+import { Icon } from '../components/icons'
 
 export default function Foods() {
   const { foods, profile, upsertFood, removeFood, upsertMeal } = useApp()
@@ -168,7 +169,7 @@ export default function Foods() {
 
       <div className="searchbar">
         <span className="icon" aria-hidden>
-          🔍
+          <Icon name="search" size={16} />
         </span>
         <input
           className="input"
@@ -207,7 +208,8 @@ export default function Foods() {
               number before it's saved.
             </p>
             <button className="btn primary" onClick={() => fileInput.current?.click()}>
-              📷 Scan a label
+              <Icon name="camera" size={17} />
+              Scan a label
             </button>
             <input
               ref={fileInput}
@@ -244,7 +246,7 @@ export default function Foods() {
           {!results.length && (
             <div className="empty">
               <span className="big" aria-hidden>
-                🧐
+                <Icon name="search" size={32} />
               </span>
               No match. Add it as a new food and it becomes searchable forever.
             </div>
@@ -343,7 +345,8 @@ export default function Foods() {
                     setDetail(null)
                   }}
                 >
-                  {detail.source === 'recipe' ? '🧾 Edit recipe' : '✏️ Edit & correct'}
+                  <Icon name={detail.source === 'recipe' ? 'list' : 'pencil'} size={16} />
+                  {detail.source === 'recipe' ? 'Edit recipe' : 'Edit & correct'}
                 </button>
                 <button
                   className="btn danger mt"
@@ -388,7 +391,7 @@ export default function Foods() {
         sub="What are you adding?"
       >
         <Choice
-          emoji="🧾"
+          icon="list"
           title="Recipe"
           desc="Several ingredients saved as one — overnight oats, curry, a sandwich. The AI estimates each ingredient as you add it, and you can correct anything."
           onClick={() => {
@@ -397,7 +400,7 @@ export default function Foods() {
           }}
         />
         <Choice
-          emoji="🏷️"
+          icon="tag"
           title="Single food"
           desc="One item with its own macros — a snack, a jar of peanut butter, a drink."
           onClick={() => {

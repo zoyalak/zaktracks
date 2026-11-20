@@ -6,6 +6,7 @@ import { cmToFtIn, displayWeight, ftInToCm, fromKg, toKg, weightLabel } from '..
 import { ApiError, apiHealth, getAiTargets, type ApiHealth } from '../lib/api'
 import { EXTRA_KEYS, EXTRA_META, normalizeSettings } from '../lib/types'
 import { Disclosure, Field, FieldError, Loading, Notice, Segmented, Sheet } from '../components/ui'
+import { Icon } from '../components/icons'
 import ModeSwitch from '../components/ModeSwitch'
 
 type NumKey = 'weight' | 'age' | 'heightCm' | 'ft' | 'in' | 'target' | 'weeks' | 'protein'
@@ -423,7 +424,9 @@ export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null
         </div>
         {draft.aiTargets && (
           <p className="tiny" style={{ marginTop: -4, marginBottom: 10 }}>
-            <span className="chip" style={{ color: 'var(--accent)' }}>✨ AI-set</span>{' '}
+            <span className="chip" style={{ color: 'var(--accent)' }}>
+              <Icon name="sparkle" size={11} /> AI-set
+            </span>{' '}
             {draft.aiTargets.rationale || 'A split tailored to your body, activity and goal.'}
           </p>
         )}
@@ -469,7 +472,8 @@ export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null
           <Loading label="Generating healthy goals..." />
         ) : (
           <button className="btn mt" onClick={() => void refreshAi(draft)}>
-            ✨ {draft.aiTargets ? 'Regenerate goals with AI' : 'Generate my goals with AI'}
+            <Icon name="sparkle" size={16} />
+            {draft.aiTargets ? 'Regenerate goals with AI' : 'Generate my goals with AI'}
           </button>
         )}
         {aiMsg && <Notice type="warn">{aiMsg}</Notice>}
@@ -549,10 +553,12 @@ export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null
         </p>
         <div className="btn-row">
           <button className="btn" onClick={exportData}>
-            ⬇️ Export
+            <Icon name="download" size={16} />
+            Export
           </button>
           <button className="btn" onClick={() => importInput.current?.click()}>
-            ⬆️ Import
+            <Icon name="upload" size={16} />
+            Import
           </button>
         </div>
         <input
@@ -569,7 +575,8 @@ export default function Profile({ onGuard }: { onGuard?: (g: ProfileGuard | null
         {dataMsg && <p className="tiny mt">{dataMsg}</p>}
         {installable && (
           <button className="btn mt" onClick={() => window.dispatchEvent(new Event('macrolens:install'))}>
-            📲 Install app on this phone
+            <Icon name="phone" size={16} />
+            Install app on this phone
           </button>
         )}
         <button

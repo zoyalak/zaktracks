@@ -5,6 +5,7 @@ import { mealsOnDate, targetsFor, totalsFor } from '../lib/selectors'
 import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '../lib/types'
 import { todayKey } from '../lib/date'
 import { Notice } from '../components/ui'
+import { Icon } from '../components/icons'
 
 export default function Chat() {
   const { profile, meals } = useApp()
@@ -103,7 +104,7 @@ export default function Chat() {
           <div className="card">
             <div className="empty">
               <span className="big" aria-hidden>
-                💬
+                <Icon name="chat" size={32} />
               </span>
               Tell me what ingredients you have — <b>eggs, spinach, rice and feta</b> — and I'll
               suggest meals that fit what's left in today's macros.

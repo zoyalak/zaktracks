@@ -426,6 +426,9 @@ h4 {
 }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 99px;
@@ -802,9 +805,14 @@ input[type='range']:focus-visible {
   background: var(--accent-soft);
 }
 
-.choice .emoji {
-  font-size: 21px;
-  line-height: 1.1;
+.choice .ico {
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+}
+
+.choice.active .ico {
+  color: var(--accent);
 }
 
 .choice .t {
@@ -945,9 +953,14 @@ input[type='range']:focus-visible {
 }
 
 .navitem .ico {
-  font-size: 19px;
-  line-height: 1;
+  display: flex;
+  line-height: 0;
   opacity: 0.75;
+}
+
+.notice-ico {
+  display: flex;
+  padding-top: 1px;
 }
 
 .navitem.active {
@@ -1018,9 +1031,14 @@ input[type='range']:focus-visible {
 }
 
 .empty .big {
-  font-size: 30px;
   display: block;
   margin-bottom: 7px;
+}
+
+.empty .big svg {
+  display: block;
+  margin: 0 auto;
+  opacity: 0.7;
 }
 
 .row {
