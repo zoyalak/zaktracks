@@ -35,23 +35,15 @@ const fromLabel = (key: string): string =>
 export function FuelReceiptCard({
   receipt,
   carry,
-  onEdit,
 }: {
   receipt: FuelReceipt
   carry: FuelCarry
-  onEdit?: () => void
 }) {
   return (
     <div className="card">
       <div className="card-title">
         <h2>Today's goal</h2>
-        {onEdit ? (
-          <button className="btn small" onClick={onEdit}>
-            Setup
-          </button>
-        ) : (
-          <span className="hint">the receipt</span>
-        )}
+        <span className="hint">the receipt</span>
       </div>
 
       <div className="receipt">
@@ -154,7 +146,7 @@ export function FuelActivityCard({
   plan,
   date,
   day,
-  title = "Yesterday's activity",
+  title = 'Activity',
 }: {
   plan: FuelPlan
   date: string

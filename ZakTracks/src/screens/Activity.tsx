@@ -32,18 +32,19 @@ export default function Activity() {
           <div className="sub">Where the goal comes from</div>
           <h1>Activity</h1>
         </div>
+        {plan && (
+          <button className="btn small" onClick={() => setSetupOpen(true)}>
+            Setup
+          </button>
+        )}
       </div>
 
       {!plan || !fuel ? (
         <FuelSetupCard onSave={saveFuel} />
       ) : (
         <>
-          <FuelReceiptCard
-            receipt={fuel.receipt}
-            carry={fuel.carry}
-            onEdit={() => setSetupOpen(true)}
-          />
-          <FuelActivityCard plan={plan} date={date} day={day} />
+          <FuelActivityCard plan={plan} date={date} day={day} title="Activity" />
+          <FuelReceiptCard receipt={fuel.receipt} carry={fuel.carry} />
           <FuelSetupSheet
             open={setupOpen}
             onClose={() => setSetupOpen(false)}
