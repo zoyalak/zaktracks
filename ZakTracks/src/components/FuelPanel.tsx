@@ -469,6 +469,7 @@ export function FuelSetupForm({
       : undefined
 
   const valid =
+    sex !== 'undisclosed' &&
     draft.age >= 13 &&
     draft.age <= 110 &&
     heightValue >= 120 &&
@@ -486,12 +487,12 @@ export function FuelSetupForm({
           options={[
             { value: 'male', label: 'Male' },
             { value: 'female', label: 'Female' },
-            { value: 'undisclosed', label: 'Skip' },
           ]}
           value={sex}
           onChange={(v) => setSex(v as Sex)}
         />
       </Field>
+      <FieldError msg={sex === 'undisclosed' ? 'Pick one — it sets the base burn.' : undefined} />
 
       <div className="field-row">
         <NumberField label="Age" value={age} onChange={setAge} unit="years" step={1} />
@@ -525,9 +526,7 @@ export function FuelSetupForm({
         max={Math.max(0, limit)}
       />
       <div className="tiny muted" style={{ marginTop: -4 }}>
-        {base > 0
-          ? `Eat this much below your ${base.toLocaleString()} kcal base burn. Up to ${limit.toLocaleString()} kcal a day.`
-          : `Eat below your base burn. Up to ${MAX_DEFICIT_KCAL} kcal a day.`}
+        Eat this much below your base. But keep it sustainable!
       </div>
       <FieldError msg={deficitError} />
 
