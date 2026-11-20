@@ -2,13 +2,7 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
 import { formatDayLabel, formatDayName, shiftKey, todayKey } from '../lib/date'
 import { eatenKcalOn, mealsOnDate, targetsFor, totalsFor, weekAverage } from '../lib/selectors'
-import { fuelBreakdown } from '../lib/fuel'
-import {
-  FuelActivityCard,
-  FuelReceiptCard,
-  FuelSetupCard,
-  FuelSetupSheet,
-} from '../components/FuelPanel'
+import { fuelGoalFor } from '../lib/fuel'
 import { displayWeight, toKg, weightLabel } from '../lib/units'
 import type { ExtraMacros, MealEntry } from '../lib/types'
 import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '../lib/types'
@@ -16,20 +10,19 @@ import MealSheet from '../components/MealSheet'
 import { Disclosure, Field, MacroBar, Notice, ProgressRing, Sheet } from '../components/ui'
 
 export default function Today({ date, onDate }: { date: string; onDate: (key: string) => void }) {
-  const { profile, meals, settings, upsertMeal, removeMeal, logWeight, saveFuel } = useApp()
+  const { profile, meals, settings, upsertMeal, removeMeal, logWeight } = useApp()
   const [editing, setEditing] = useState<{ meal: MealEntry; isNew: boolean } | null>(null)
   const [weighOpen, setWeighOpen] = useState(false)
   const [weightInput, setWeightInput] = useState('')
-  const [setupOpen, setSetupOpen] = useState(false)
 
   if (!profile) return null
 
-  // The goal is Fuel's: base burn + logged movement + yesterday's leftover
-  // − deficit. Macro targets come out of that same goal.
-  const fuelPlan = settings.fuel ?? null
-  const fuelDay = settings.fuelDays?.find((d) => d.date === date) ?? null
-  const fuel = fuelBreakdown(fuelPlan, settings.fuelDays, date, (d) => eatenKcalOn(meals, d))
-  const targets = targetsFor(profile, fuel ? { goalKcal: fuel.receipt.goalKcal, macro: fuel.macro } : null)
+  // The goal is the Activity tab's: base burn + logged movement + yesterday's
+  // leftover − deficit. Macro targets come out of that same goal.
+  const fuel = fuelGoalFor(settings.fuel ?? null, settings.fuelDays, date, (d) =>
+    eatenKcalOn(meals, d),
+  )
+  const targets = targetsFor(profile, fuel)
   const dayMeals = mealsOnDate(meals, date)
   const totals = totalsFor(meals, date)
   const dayExtras: ExtraMacros = dayMeals.reduce(
@@ -82,18 +75,6 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
           </button>
         </div>
       </div>
-
-      {!fuelPlan ? (
-        <FuelSetupCard onSave={saveFuel} />
-      ) : (
-        fuel && (
-          <FuelReceiptCard
-            receipt={fuel.receipt}
-            carry={fuel.carry}
-            onEdit={() => setSetupOpen(true)}
-          />
-        )
-      )}
 
       <div className="card">
         <div className="ring-wrap">
@@ -205,15 +186,6 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
         </Disclosure>
       </div>
 
-      {fuelPlan && (
-        <FuelActivityCard
-          plan={fuelPlan}
-          date={date}
-          day={fuelDay}
-          title={isToday ? "Yesterday's activity" : 'Activity that fed this goal'}
-        />
-      )}
-
       <div className="card tight">
         <div className="row between">
           <div>
@@ -304,15 +276,6 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
           onClose={() => setEditing(null)}
           onSave={saveEdit}
           onDelete={(id) => void removeMeal(id)}
-        />
-      )}
-
-      {fuelPlan && (
-        <FuelSetupSheet
-          open={setupOpen}
-          onClose={() => setSetupOpen(false)}
-          plan={fuelPlan}
-          onSave={saveFuel}
         />
       )}
 

@@ -6,15 +6,17 @@ import { fuelGoalFor } from './lib/fuel'
 import AddMealSheet from './components/AddMealSheet'
 import Auth from './components/Auth'
 import Onboarding from './components/Onboarding'
+import Activity from './screens/Activity'
 import Today from './screens/Today'
 import Week from './screens/Week'
 import Foods from './screens/Foods'
 import Profile, { type ProfileGuard } from './screens/Profile'
 import { CloverLogo, Sheet } from './components/ui'
 
-type Tab = 'today' | 'week' | 'foods' | 'profile'
+type Tab = 'activity' | 'today' | 'week' | 'foods' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'activity', label: 'Activity', icon: '🏃' },
   { id: 'today', label: 'Track', icon: '🍽️' },
   { id: 'foods', label: 'Foods', icon: '🛒' },
   { id: 'week', label: 'Logs', icon: '📈' },
@@ -103,6 +105,7 @@ export default function App() {
             👤
           </button>
         </div>
+        {tab === 'activity' && <Activity />}
         {tab === 'today' && <Today date={day} onDate={setDay} />}
         {tab === 'week' && <Week />}
         {tab === 'foods' && <Foods />}

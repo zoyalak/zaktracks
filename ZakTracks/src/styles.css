@@ -897,7 +897,7 @@ input[type='range']:focus-visible {
   max-width: 480px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: var(--nav-h);
 }
 

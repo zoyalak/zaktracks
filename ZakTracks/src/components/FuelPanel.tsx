@@ -271,30 +271,34 @@ function WorkoutsField({
 
   return (
     <>
-      <Field label="Workout" hint="Describe it, estimate it, then adjust the calories if you like.">
-        <div className="suffix">
+      <Field label="Workout" hint="Describe it, then estimate or type the calories yourself.">
+        <div className="row" style={{ gap: 8 }}>
           <input
             className="input"
+            style={{ flex: 1, minWidth: 0 }}
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             placeholder="e.g. 45 min run"
             enterKeyHint="done"
           />
+          <button
+            className="btn small"
+            style={{ flex: '0 0 auto' }}
+            disabled={!desc.trim() || busy}
+            onClick={() => void estimate()}
+          >
+            {busy ? '…' : 'Estimate'}
+          </button>
         </div>
       </Field>
-      <div className="field-row">
-        <NumberField
-          label="Calories"
-          unit="kcal"
-          value={kcalText}
-          onChange={setKcalText}
-          step={5}
-          min={0}
-        />
-        <button className="btn" disabled={!desc.trim() || busy} onClick={() => void estimate()}>
-          {busy ? 'Estimating…' : 'Estimate'}
-        </button>
-      </div>
+      <NumberField
+        label="Calories"
+        unit="kcal"
+        value={kcalText}
+        onChange={setKcalText}
+        step={5}
+        min={0}
+      />
       {note && (
         <div className="tiny muted" style={{ marginTop: -4, marginBottom: 8 }}>
           {note}
