@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
 import { formatDayLabel, formatDayName, shiftKey, todayKey } from '../lib/date'
 import { eatenKcalOn, mealsOnDate, targetsFor, totalsFor, weekAverage } from '../lib/selectors'
-import { fuelGoalFor } from '../lib/fuel'
+import { fuelBaseKcal, fuelGoalFor } from '../lib/fuel'
 import { displayWeight, toKg, weightLabel } from '../lib/units'
 import type { ExtraMacros, MealEntry } from '../lib/types'
 import { EXTRA_KEYS, EXTRA_META, addExtras, emptyExtras, mealToExtras } from '../lib/types'
@@ -39,6 +39,8 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
   /** Monday–Sunday average for the week this day belongs to, plus the pace that keeps it at the goal. */
   const week = weekAverage(meals, targets.goalKcal, date)
   const weekOver = week.avg != null && week.avg > targets.goalKcal
+  /** Fuel mode: maintenance is just the base burn, nothing added or taken away. */
+  const fuelBase = appMode === 'fuel' && settings.fuel ? fuelBaseKcal(settings.fuel) : null
   const latestWeight = settings.weightLog.length
     ? [...settings.weightLog].sort((a, b) => b.date.localeCompare(a.date))[0].kg
     : profile.weightKg
@@ -103,48 +105,56 @@ export default function Today({ date, onDate }: { date: string; onDate: (key: st
                 {targets.goalKcal.toLocaleString()}
               </span>
             </div>
-            <div className="stat-row">
-              <span className="k">
-                <i className="dot" style={{ background: 'var(--text-dim)' }} />{' '}
-                Week avg
-              </span>
-              <span
-                className="v num"
-                style={{ color: weekOver ? 'var(--danger)' : 'var(--accent)' }}
-                title={`Monday to Sunday average over ${week.daysLogged} logged ${week.daysLogged === 1 ? 'day' : 'days'}, against a ${targets.goalKcal.toLocaleString()} kcal goal`}
-              >
-                {week.avg == null ? '—' : week.avg.toLocaleString()}
-              </span>
-            </div>
-            <div className="stat-row">
-              <span className="k">
-                <i className="dot" style={{ background: 'var(--text-dim)' }} />
-                <span>
-                  Daily Allowance
-                  <span className="allowance-note">(to stay on track for the week)</span>
-                </span>
-              </span>
-              <span
-                className="v num"
-                title={
-                  week.perDay == null
-                    ? 'This week\'s budget is already spent'
-                    : `A day for the ${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left this week keeps the week's average under ${targets.goalKcal.toLocaleString()} kcal`
-                }
-              >
-                {week.perDay == null ? '—' : week.perDay.toLocaleString()}
-              </span>
-            </div>
+            {fuelBase == null && (
+              <>
+                <div className="stat-row">
+                  <span className="k">
+                    <i className="dot" style={{ background: 'var(--text-dim)' }} />{' '}
+                    Week avg
+                  </span>
+                  <span
+                    className="v num"
+                    style={{ color: weekOver ? 'var(--danger)' : 'var(--accent)' }}
+                    title={`Monday to Sunday average over ${week.daysLogged} logged ${week.daysLogged === 1 ? 'day' : 'days'}, against a ${targets.goalKcal.toLocaleString()} kcal goal`}
+                  >
+                    {week.avg == null ? '—' : week.avg.toLocaleString()}
+                  </span>
+                </div>
+                <div className="stat-row">
+                  <span className="k">
+                    <i className="dot" style={{ background: 'var(--text-dim)' }} />
+                    <span>
+                      Daily Allowance
+                      <span className="allowance-note">(to stay on track for the week)</span>
+                    </span>
+                  </span>
+                  <span
+                    className="v num"
+                    title={
+                      week.perDay == null
+                        ? 'This week\'s budget is already spent'
+                        : `A day for the ${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left this week keeps the week's average under ${targets.goalKcal.toLocaleString()} kcal`
+                    }
+                  >
+                    {week.perDay == null ? '—' : week.perDay.toLocaleString()}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="stat-row">
               <span className="k">
                 <i className="dot" style={{ background: 'var(--text-dim)' }} /> Maintenance
               </span>
-              <span className="v num">{targets.maintenance.toLocaleString()}</span>
+              <span className="v num">
+                {(fuelBase ?? targets.maintenance).toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
         <p className="tiny muted" style={{ margin: '10px 0 0', opacity: 0.6 }}>
-          *Week = Monday to Sunday
+          {fuelBase == null
+            ? '*Week = Monday to Sunday'
+            : 'Base burn: no deficit, no surplus, no exercise counted.'}
         </p>
       </div>
 
